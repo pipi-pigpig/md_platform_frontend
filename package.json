@@ -1,0 +1,29 @@
+{
+    "name": "electrolyte-frontend",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "dev": "vite",
+        "build": "npx vite build",
+        "preview": "vite preview",
+        "build:ci": "npm ci --silent && npx vite build"
+    },
+    "dependencies": {
+        "3dmol": "^2.5.4",
+        "axios": "^0.27.2",
+        "element-plus": "^2.3.8",
+        "plotly.js-dist-min": "^3.5.0",
+        "three": "^0.183.2",
+        "vue": "^3.3.4",
+        "vue-router": "^4.2.4"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-vue": "^4.3.4",
+        "esbuild-wasm": "^0.27.1",
+        "vite": "^4.4.7"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "npm": ">=9.0.0"
+    }
+}
