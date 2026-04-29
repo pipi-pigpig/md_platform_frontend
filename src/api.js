@@ -189,6 +189,44 @@ export const healthApi = {
     checkMDEndine: () => api.get('/health/md-engine')
 }
 
+// 用户认证API
+export const authApi = {
+    login: (data) => api.post('/auth/login', data),
+    register: (data) => api.post('/auth/register', data),
+    logout: () => api.post('/auth/logout')
+}
+
+// 用户管理API
+export const userApi = {
+    getAll: () => api.get('/users'),
+    getById: (id) => api.get(`/users/${id}`),
+    getByUsername: (username) => api.get(`/users/username/${username}`),
+    create: (data) => api.post('/users', data),
+    update: (id, data) => api.put(`/users/${id}`, data),
+    delete: (id) => api.delete(`/users/${id}`)
+}
+
+// 分子模板API
+export const moleculeApi = {
+    getAll: () => api.get('/molecules'),
+    getById: (id) => api.get(`/molecules/${id}`),
+    getByName: (name) => api.get(`/molecules/name/${name}`),
+    getByType: (type) => api.get(`/molecules/type/${type}`),
+    getSystemTemplates: () => api.get('/molecules/system'),
+    create: (data) => api.post('/molecules', data),
+    update: (id, data) => api.put(`/molecules/${id}`, data),
+    delete: (id) => api.delete(`/molecules/${id}`)
+}
+
+// 计算结果API
+export const resultApi = {
+    getAll: () => api.get('/results'),
+    getById: (id) => api.get(`/results/${id}`),
+    getByJobId: (jobId) => api.get(`/results/job/${jobId}`),
+    create: (data) => api.post('/results', data),
+    delete: (id) => api.delete(`/results/${id}`)
+}
+
 // 工具函数：处理文件下载
 export const downloadHelper = {
     downloadBlob: (blob, filename) => {
