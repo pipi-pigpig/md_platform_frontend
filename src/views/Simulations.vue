@@ -78,7 +78,7 @@
           <div class="filter-left">
             <el-input
               v-model="searchQuery"
-              placeholder="搜索任务名称、软件、状态..."
+              placeholder="搜索任务名称、状态..."
               class="search-input"
               clearable
               @keyup.enter="loadSimulations"
@@ -103,19 +103,7 @@
               <el-option label="失败" value="FAILED" />
               <el-option label="已取消" value="CANCELLED" />
             </el-select>
-            
-            <el-select
-              v-model="filterSoftware"
-              placeholder="软件筛选"
-              clearable
-              class="filter-select"
-              @change="loadSimulations"
-            >
-              <el-option label="全部" value="" />
-              <el-option label="LAMMPS" value="LAMMPS" />
-              <el-option label="GROMACS" value="GROMACS" />
-            </el-select>
-            
+
             <el-select
               v-model="filterHardware"
               placeholder="硬件筛选"
@@ -160,6 +148,7 @@
           </div>
         </template>
         
+      <div class="table-responsive">
         <el-table
           ref="tableRef"
           :data="simulations"
@@ -171,17 +160,17 @@
           style="width: 100%"
         >
           <!-- 选择列 -->
-          <el-table-column type="selection" width="55" />
-          
+          <el-table-column type="selection" min-width="50" />
+
           <!-- ID列 -->
-          <el-table-column prop="id" label="ID" width="80" sortable="custom">
+          <el-table-column prop="id" label="ID" min-width="65" sortable="custom">
             <template #default="{ row }">
               <el-tag size="small" effect="plain">#{{ row.id }}</el-tag>
             </template>
           </el-table-column>
           
           <!-- 任务名称列 -->
-          <el-table-column prop="jobName" label="任务名称" min-width="180" sortable="custom">
+          <el-table-column prop="jobName" label="任务名称" min-width="140" sortable="custom">
             <template #default="{ row }">
               <div class="job-name-cell">
                 <div class="job-name">{{ row.jobName }}</div>
@@ -191,30 +180,17 @@
           </el-table-column>
 
           <!-- 任务说明列 -->
-          <el-table-column prop="description" label="任务说明" width="150">
+          <el-table-column prop="description" label="任务说明" min-width="100" show-overflow-tooltip>
             <template #default="{ row }">
               <el-tooltip v-if="row.description" :content="row.description" placement="top" :show-overflow-tooltip="true">
-                <span>{{ row.description.substring(0, 30) + (row.description.length > 30 ? '...' : '') }}</span>
+                <span>{{ row.description.substring(0, 15) + (row.description.length > 15 ? '...' : '') }}</span>
               </el-tooltip>
               <span v-else class="no-description">--</span>
             </template>
           </el-table-column>
 
-          <!-- 软件列 -->
-          <el-table-column prop="software" label="软件" width="120" sortable="custom">
-            <template #default="{ row }">
-              <el-tag
-                :type="row.software === 'LAMMPS' ? 'primary' : 'success'"
-                size="small"
-                effect="dark"
-              >
-                {{ row.software }}
-              </el-tag>
-            </template>
-          </el-table-column>
-
           <!-- 状态列 -->
-          <el-table-column prop="status" label="状态" width="130" sortable="custom">
+          <el-table-column prop="status" label="状态" min-width="90" sortable="custom">
             <template #default="{ row }">
               <div class="status-cell">
                 <el-tag
@@ -241,7 +217,7 @@
           </el-table-column>
 
           <!-- 硬件列 -->
-          <el-table-column prop="hardwareUsed" label="硬件" width="100">
+          <el-table-column prop="hardwareUsed" label="硬件" min-width="75">
             <template #default="{ row }">
               <el-tag
                 :type="row.hardwareUsed === 'GPU' ? 'warning' : 'info'"
@@ -254,7 +230,7 @@
           </el-table-column>
 
           <!-- 配方信息列 -->
-          <el-table-column label="电解液配方" min-width="150">
+          <el-table-column label="配方" min-width="70">
             <template #default="{ row }">
               <div v-if="row.systemId" class="system-info">
                 <el-tooltip content="点击查看配方详情" placement="top">
@@ -263,16 +239,16 @@
                     :underline="false"
                     @click="viewSystem(row.systemId)"
                   >
-                    配方 #{{ row.systemId }}
+                    #{{ row.systemId }}
                   </el-link>
                 </el-tooltip>
               </div>
-              <span v-else class="no-system">未关联配方</span>
+              <span v-else class="no-system">--</span>
             </template>
           </el-table-column>
 
           <!-- 时间列 -->
-          <el-table-column prop="createdAt" label="创建时间" width="160" sortable="custom">
+          <el-table-column prop="createdAt" label="创建时间" min-width="90" sortable="custom">
             <template #default="{ row }">
               <div class="time-cell">
                 <div class="time-value">{{ formatDate(row.createdAt, 'MM-DD HH:mm') }}</div>
@@ -282,52 +258,49 @@
           </el-table-column>
 
           <!-- 执行时间列 -->
-          <el-table-column prop="executionTime" label="执行时间" width="120">
+          <el-table-column prop="executionTime" label="执行时间" min-width="70">
             <template #default="{ row }">
               <div v-if="row.executionTime" class="duration-cell">
                 {{ formatDuration(row.executionTime) }}
               </div>
-              <span v-else class="no-duration">3小时</span>
+              <span v-else class="no-duration">--</span>
             </template>
           </el-table-column>
 
           <!-- 操作列 -->
-          <el-table-column label="操作" width="140" fixed="right">
+          <el-table-column label="操作" min-width="180">
             <template #default="{ row }">
               <div class="action-buttons">
                 <!-- 查看详情 -->
-                <el-button 
-                  size="small" 
-                  type="primary" 
+                <el-button
+                  size="small"
+                  type="primary"
                   plain
                   @click="viewDetails(row)"
-                  icon="el-icon-view"
                   class="action-btn"
                 >
                   详情
                 </el-button>
-                
+
                 <!-- 取消任务（仅运行中状态） -->
-                <el-button 
-                  size="small" 
-                  type="warning" 
+                <el-button
+                  size="small"
+                  type="warning"
                   plain
                   @click="cancelSimulation(row)"
                   v-if="row.status === 'RUNNING' || row.status === 'PENDING'"
-                  icon="el-icon-close"
                   class="action-btn"
                 >
                   取消
                 </el-button>
-                
+
                 <!-- 删除任务（非运行中状态） -->
-                <el-button 
-                  size="small" 
-                  type="danger" 
+                <el-button
+                  size="small"
+                  type="danger"
                   plain
                   @click="deleteSimulation(row)"
                   v-if="row.status !== 'RUNNING'"
-                  icon="el-icon-delete"
                   class="action-btn"
                 >
                   删除
@@ -336,7 +309,8 @@
             </template>
           </el-table-column>
         </el-table>
-        
+      </div>
+
         <!-- 分页 -->
         <div class="pagination-container">
           <el-pagination
@@ -367,12 +341,6 @@
               <div class="card-header">
                 <div class="card-title">
                   <h4>{{ simulation.jobName }}</h4>
-                  <el-tag 
-                    :type="simulation.software === 'LAMMPS' ? 'primary' : 'success'" 
-                    size="small"
-                  >
-                    {{ simulation.software }}
-                  </el-tag>
                 </div>
                 <div class="card-actions">
                   <el-dropdown @command="handleRowCommand(simulation, $event)" trigger="click">
@@ -424,14 +392,6 @@
                 <span v-else class="description-text no-description">
                   <i class="el-icon-document"></i>
                   --
-                </span>
-              </div>
-
-              <!-- 计算单位 -->
-              <div class="card-computing-unit">
-                <span class="computing-unit-text">
-                  <i class="el-icon-office-building"></i>
-                  计算单位：{{ simulation.computingUnit || '--' }}
                 </span>
               </div>
 
@@ -604,11 +564,6 @@
                 <el-descriptions :column="2" border size="default">
                   <el-descriptions-item label="任务ID">{{ selectedSimulation.id }}</el-descriptions-item>
                   <el-descriptions-item label="任务名称">{{ selectedSimulation.jobName }}</el-descriptions-item>
-                  <el-descriptions-item label="软件">
-                    <el-tag :type="selectedSimulation.software === 'LAMMPS' ? 'primary' : 'success'">
-                      {{ selectedSimulation.software }}
-                    </el-tag>
-                  </el-descriptions-item>
                   <el-descriptions-item label="状态">
                     <el-tag :type="getStatusType(selectedSimulation.status)">
                       {{ getStatusText(selectedSimulation.status) }}
@@ -628,9 +583,6 @@
                   </el-descriptions-item>
                   <el-descriptions-item label="任务说明">
                     {{ selectedSimulation.description || '未填写' }}
-                  </el-descriptions-item>
-                  <el-descriptions-item label="计算单位">
-                    {{ selectedSimulation.computingUnit || '未填写' }}
                   </el-descriptions-item>
                 </el-descriptions>
               </el-card>
@@ -881,11 +833,10 @@ export default {
       selectedSimulation: null,
       selectedSystem: null,
       loading: false,
-      
+
       // 搜索和过滤
       searchQuery: '',
       filterStatus: '',
-      filterSoftware: '',
       filterHardware: '',
       viewMode: 'table', // 'table' 或 'card'
       
@@ -937,23 +888,17 @@ export default {
       // 搜索过滤
       if (this.searchQuery) {
         const query = this.searchQuery.toLowerCase()
-        filtered = filtered.filter(s => 
+        filtered = filtered.filter(s =>
           s.jobName.toLowerCase().includes(query) ||
-          s.software.toLowerCase().includes(query) ||
           s.status.toLowerCase().includes(query)
         )
       }
-      
+
       // 状态过滤
       if (this.filterStatus) {
         filtered = filtered.filter(s => s.status === this.filterStatus)
       }
-      
-      // 软件过滤
-      if (this.filterSoftware) {
-        filtered = filtered.filter(s => s.software === this.filterSoftware)
-      }
-      
+
       // 硬件过滤
       if (this.filterHardware) {
         filtered = filtered.filter(s => s.hardwareUsed === this.filterHardware)
@@ -981,17 +926,9 @@ export default {
       this.loading = true
       try {
         const response = await simulationApi.getAll()
-        const serverData = response.data || []
-        
-        // 保留本地创建的任务（带 _local 标记）
-        const localTasks = this.simulations.filter(s => s._local)
-        // 合并数据：本地任务 + 服务器任务（去重）
-        const serverIds = new Set(serverData.map(s => s.id))
-        const localTasksNotOnServer = localTasks.filter(s => !serverIds.has(s.id))
-        this.simulations = [...localTasksNotOnServer, ...serverData]
-        
+        this.simulations = response.data || []
         this.pagination.total = this.simulations.length
-        
+
         // 为运行中的任务模拟进度
         this.simulations.forEach(sim => {
           if (sim.status === 'RUNNING' && !sim.progress) {
@@ -1011,23 +948,15 @@ export default {
     async loadStats() {
       try {
         const response = await simulationApi.getStats()
-        // 假设返回的是文本格式，需要解析
-        const statsText = response.data
-        if (typeof statsText === 'string') {
-          // 简单解析文本格式的统计信息
-          const lines = statsText.split('\n')
-          lines.forEach(line => {
-            const match = line.match(/(\w+):\s*(\d+)/)
-            if (match) {
-              const key = match[1].toLowerCase()
-              const value = parseInt(match[2])
-              if (key in this.stats) {
-                this.stats[key] = value
-              }
-            }
-          })
-        } else if (typeof statsText === 'object') {
-          this.stats = { ...this.stats, ...statsText }
+        if (response.data) {
+          this.stats = {
+            total: response.data.total || 0,
+            pending: response.data.pending || 0,
+            running: response.data.running || 0,
+            completed: response.data.completed || 0,
+            failed: response.data.failed || 0,
+            cancelled: response.data.cancelled || 0
+          }
         }
       } catch (error) {
         console.error('加载统计信息失败:', error)
@@ -1036,34 +965,57 @@ export default {
     
     // 创建新模拟任务
     async handleCreateSimulation(formData) {
-      const maxId = this.simulations.length > 0 
-        ? Math.max(...this.simulations.map(s => s.id)) 
-        : 0
-      const newSimulation = {
-        id: maxId + 1,
-        jobName: formData.jobName || '新建模拟任务',
-        description: formData.description || '',
-        computingUnit: formData.computingUnit || '',
-        software: formData.software || 'LAMMPS',
-        hardwareUsed: formData.hardwareUsed || 'CPU',
-        status: 'PENDING',
-        progress: 0,
-        systemId: formData.systemId || null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        parameters: formData.parameters || '{}',
-        _local: true
-      }
       try {
-        await simulationApi.create(formData)
-      } catch (error) {
-        console.error('创建模拟任务失败:', error)
-      } finally {
+        // 映射前端字段到后端实体字段
+        const jobData = {
+          jobName: formData.jobName,
+          userId: 1, // 默认用户ID
+          systemId: formData.systemId,
+          softwareName: formData.software || 'LAMMPS',
+          softwareVersion: '2023.08.02', // 默认版本
+          status: 'PENDING',
+          targetProperties: JSON.stringify({
+            description: formData.description,
+            computingUnit: formData.computingUnit,
+            ...JSON.parse(formData.parameters || '{}')
+          }),
+          hardwareUsed: formData.hardwareUsed || 'GPU',
+          cpuCores: '8',
+          gpuInfo: formData.hardwareUsed === 'GPU' ? 'NVIDIA A100' : null,
+          jobRootPath: `/data/platform_data/user_1/jobs/job_${Date.now()}/`,
+          randomSeed: Math.floor(Math.random() * 100000)
+        }
+
+        const response = await simulationApi.create(jobData)
+        const createdJob = response.data
+
+        // 使用后端返回的数据，添加必要的前端显示字段
+        const newSimulation = {
+          id: createdJob.jobId,
+          jobName: createdJob.jobName,
+          description: formData.description,
+          computingUnit: formData.computingUnit,
+          software: createdJob.softwareName,
+          hardwareUsed: createdJob.hardwareUsed,
+          status: createdJob.status,
+          progress: 0,
+          systemId: createdJob.systemId,
+          createdAt: createdJob.createTime,
+          updatedAt: createdJob.updateTime,
+          parameters: createdJob.targetProperties
+        }
+
+        // 添加到列表顶部
         this.simulations.unshift(newSimulation)
         this.stats.total = (this.stats.total || 0) + 1
         this.stats.pending = (this.stats.pending || 0) + 1
+        this.pagination.total = this.simulations.length
+
         ElMessage.success('模拟任务创建成功，已提交执行')
         this.showCreateDialog = false
+      } catch (error) {
+        console.error('创建模拟任务失败:', error)
+        ElMessage.error('创建模拟任务失败: ' + (error.response?.data?.message || error.message))
       }
     },
     
@@ -1389,7 +1341,6 @@ export default {
           const exportData = this.selectedSimulations.map(job => ({
             id: job.id,
             name: job.jobName,
-            software: job.software,
             status: job.status,
             hardware: job.hardwareUsed,
             created: job.createdAt
@@ -1643,6 +1594,48 @@ export default {
   padding: 20px;
 }
 
+/* 表格响应式容器 */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 深度覆盖 Element Plus 表格样式 */
+.table-responsive :deep(.el-table) {
+  display: table;
+  width: 100% !important;
+  min-width: 900px;
+}
+
+.table-responsive :deep(.el-table__inner-wrapper) {
+  width: 100% !important;
+}
+
+.table-responsive :deep(.el-table__header-wrapper),
+.table-responsive :deep(.el-table__body-wrapper) {
+  overflow-x: visible !important;
+}
+
+.table-responsive :deep(.el-table__header),
+.table-responsive :deep(.el-table__body) {
+  width: 100% !important;
+  table-layout: auto !important;
+}
+
+.table-responsive :deep(.el-table__cell) {
+  word-break: break-word;
+}
+
+/* 确保固定列不干扰滚动 */
+.table-responsive :deep(.el-table-fixed-column--right) {
+  position: static !important;
+}
+
+.table-responsive :deep(.el-table__fixed-right) {
+  display: none !important;
+}
+
 /* 页面头部样式 */
 .page-header {
   margin-bottom: 20px;
@@ -1809,7 +1802,6 @@ export default {
 .action-buttons .action-btn {
   padding: 5px 10px;
   font-size: 12px;
-  min-width: auto;
 }
 
 /* 卡片视图样式 */

@@ -48,7 +48,8 @@
         </div>
       </template>
 
-      <el-table :data="recentSimulations" v-loading="loading">
+      <div class="table-responsive">
+        <el-table :data="recentSimulations" v-loading="loading">
         <el-table-column prop="jobName" label="任务名称" width="180" />
         <el-table-column prop="description" label="任务说明" min-width="200">
           <template #default="scope">
@@ -56,13 +57,6 @@
               <span>{{ scope.row.description.substring(0, 30) + (scope.row.description.length > 30 ? '...' : '') }}</span>
             </el-tooltip>
             <span v-else style="color: #C0C4CC;">--</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="software" label="软件" width="100">
-          <template #default="scope">
-            <el-tag :type="scope.row.software === 'LAMMPS' ? 'primary' : 'success'">
-              {{ scope.row.software }}
-            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="120">
@@ -84,7 +78,8 @@
             </el-button>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </div>
     </el-card>
   </div>
 </template>
@@ -120,7 +115,16 @@ export default {
         // 获取统计信息
         try {
           const statsResponse = await simulationApi.getStats()
-          this.stats = statsResponse.data || {}
+          if (statsResponse.data) {
+            this.stats = {
+              total: statsResponse.data.total || 0,
+              pending: statsResponse.data.pending || 0,
+              running: statsResponse.data.running || 0,
+              completed: statsResponse.data.completed || 0,
+              failed: statsResponse.data.failed || 0,
+              cancelled: statsResponse.data.cancelled || 0
+            }
+          }
         } catch (e) {
           console.log('统计API暂不可用')
         }
@@ -169,5 +173,47 @@ export default {
 <style scoped>
 .dashboard {
   padding: 20px;
+}
+
+/* 表格响应式容器 */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 深度覆盖 Element Plus 表格样式 */
+.table-responsive :deep(.el-table) {
+  display: table;
+  width: 100% !important;
+  min-width: 600px;
+}
+
+.table-responsive :deep(.el-table__inner-wrapper) {
+  width: 100% !important;
+}
+
+.table-responsive :deep(.el-table__header-wrapper),
+.table-responsive :deep(.el-table__body-wrapper) {
+  overflow-x: visible !important;
+}
+
+.table-responsive :deep(.el-table__header),
+.table-responsive :deep(.el-table__body) {
+  width: 100% !important;
+  table-layout: auto !important;
+}
+
+.table-responsive :deep(.el-table__cell) {
+  word-break: break-word;
+}
+
+/* 确保固定列不干扰滚动 */
+.table-responsive :deep(.el-table-fixed-column--right) {
+  position: static !important;
+}
+
+.table-responsive :deep(.el-table__fixed-right) {
+  display: none !important;
 }
 </style>

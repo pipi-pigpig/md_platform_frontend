@@ -66,12 +66,7 @@ export const simulationApi = {
     getById: (id) => api.get(`/simulations/${id}`),
 
     // 创建模拟任务
-    create: (formData) => api.post('/simulations', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data',
-            'Accept': 'application/json'
-        }
-    }),
+    create: (data) => api.post('/simulations', data),
 
     // 取消模拟任务
     cancel: (id) => api.post(`/simulations/${id}/cancel`),

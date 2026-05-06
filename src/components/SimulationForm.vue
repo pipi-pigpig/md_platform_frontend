@@ -484,7 +484,45 @@ export default {
     this.loadExistingJobNames()
   },
 
+  watch: {
+    // 监听配方选择变化，自动填充配方参数
+    'form.systemId': {
+      handler(newVal) {
+        if (newVal) {
+          const selected = this.systems.find(s => s.id === newVal)
+          if (selected) {
+            // 从选中的配方填充表单参数
+            this.form.saltType = selected.saltFormula || 'LiPF6'
+            // 溶剂类型映射：后端格式 "EC/DMC" -> 前端格式 "EC_DMC"
+            this.form.solventType = this.mapSolventType(selected.solventType)
+            this.form.concentration = selected.concentration || 1.0
+            this.form.temperature = selected.temperature || 298.15
+            this.form.pressure = selected.pressure || 1.0
+            this.form.ecRatio = selected.ecRatio || 50
+            this.form.dmcRatio = selected.dmcRatio || 50
+          }
+        }
+      },
+      immediate: true
+    }
+  },
+
   methods: {
+    // 溶剂类型映射：后端格式转前端格式
+    mapSolventType(backendType) {
+      if (!backendType) return 'EC_DMC'
+      // 处理后端返回的格式，如 "EC/DMC" -> "EC_DMC"
+      const typeMap = {
+        'EC/DMC': 'EC_DMC',
+        'EC/EMC': 'EC_EMC',
+        'EC': 'EC',
+        'DMC': 'DMC',
+        'WATER': 'WATER',
+        'OTHER': 'OTHER'
+      }
+      return typeMap[backendType] || backendType.replace('/', '_')
+    },
+
     // 加载配方列表
     async loadSystems() {
       try {
