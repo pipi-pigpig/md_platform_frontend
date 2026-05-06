@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "private": true,
     "scripts": {
-        "dev": "vite",
+        "dev": "cross-env NODE_OPTIONS=--no-deprecation vite",
         "build": "npx vite build",
         "preview": "vite preview",
         "build:ci": "npm ci --silent && npx vite build"
@@ -19,6 +19,7 @@
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^4.3.4",
+        "cross-env": "^10.1.0",
         "esbuild-wasm": "^0.27.1",
         "vite": "^4.4.7"
     },
