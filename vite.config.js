@@ -12,11 +12,10 @@ export default defineConfig({
             }
         }
     },
-    // 告诉打包工具这是浏览器环境
     define: {
         'process.env': {},
         'process.browser': true,
-        'global': {}
+        'global': 'globalThis'
     },
     resolve: {
         mainFields: ['browser', 'module', 'main'],
@@ -32,7 +31,9 @@ export default defineConfig({
     },
     optimizeDeps: {
         esbuildOptions: {
-            platform: 'neutral'
+            define: {
+                global: 'globalThis'
+            }
         }
     }
 })

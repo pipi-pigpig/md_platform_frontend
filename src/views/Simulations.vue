@@ -42,9 +42,7 @@
       <div class="stats-cards">
         <el-row :gutter="20">
           <el-col :xs="12" :sm="6" :md="6" :lg="6" :xl="6">
-            <el-statistic title="总任务数" :value="stats.total || 2">
-              <template #suffix>/ {{ stats.total || 3 }}</template>
-            </el-statistic>
+            <el-statistic title="总任务数" :value="stats.total || 0" />
           </el-col>
           <el-col :xs="12" :sm="6" :md="6" :lg="6" :xl="6">
             <el-statistic

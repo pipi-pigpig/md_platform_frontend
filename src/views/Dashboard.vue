@@ -8,7 +8,7 @@
       <el-col :span="6">
         <el-card shadow="hover">
           <div style="text-align: center;">
-            <div style="font-size: 36px; color: #409eff;">{{ stats.total || 3 }}</div>
+            <div style="font-size: 36px; color: #409eff;">{{ stats.total }}</div>
             <div style="color: #909399;">总任务数</div>
           </div>
         </el-card>
@@ -16,7 +16,7 @@
       <el-col :span="6">
         <el-card shadow="hover">
           <div style="text-align: center;">
-            <div style="font-size: 36px; color: #e6a23c;">{{ stats.pending || 1 }}</div>
+            <div style="font-size: 36px; color: #e6a23c;">{{ stats.pending }}</div>
             <div style="color: #909399;">等待中</div>
           </div>
         </el-card>
@@ -24,7 +24,7 @@
       <el-col :span="6">
         <el-card shadow="hover">
           <div style="text-align: center;">
-            <div style="font-size: 36px; color: #67c23a;">{{ stats.running || 1 }}</div>
+            <div style="font-size: 36px; color: #67c23a;">{{ stats.running }}</div>
             <div style="color: #909399;">运行中</div>
           </div>
         </el-card>
@@ -32,7 +32,7 @@
       <el-col :span="6">
         <el-card shadow="hover">
           <div style="text-align: center;">
-            <div style="font-size: 36px; color: #67c23a;">{{ stats.completed || 1 }}</div>
+            <div style="font-size: 36px; color: #67c23a;">{{ stats.completed }}</div>
             <div style="color: #909399;">已完成</div>
           </div>
         </el-card>
@@ -93,7 +93,14 @@ export default {
     return {
       loading: false,
       simulations: [],
-      stats: {}
+      stats: {
+        total: 0,
+        pending: 0,
+        running: 0,
+        completed: 0,
+        failed: 0,
+        cancelled: 0
+      }
     }
   },
   computed: {

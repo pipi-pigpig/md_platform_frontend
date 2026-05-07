@@ -34,24 +34,22 @@ api.interceptors.response.use(
         if (error.response) {
             switch (error.response.status) {
                 case 401:
-                    console.error('未授权，请重新登录')
+                    // 未授权，清除 token 并跳转到登录页
+                    localStorage.removeItem('token')
+                    localStorage.removeItem('user')
+                    // 避免在登录页重复跳转
+                    if (window.location.pathname !== '/login') {
+                        window.location.href = '/login'
+                    }
                     break
                 case 403:
-                    console.error('拒绝访问')
-                    break
                 case 404:
-                    console.error('请求的资源不存在')
+                    // 资源不存在或权限不足，静默处理
                     break
                 case 500:
-                    console.error('服务器内部错误')
+                    console.warn('服务器内部错误')
                     break
-                default:
-                    console.error('请求错误', error.response.status)
             }
-        } else if (error.request) {
-            console.error('网络错误，请检查网络连接')
-        } else {
-            console.error('请求配置错误', error.message)
         }
         return Promise.reject(error)
     }

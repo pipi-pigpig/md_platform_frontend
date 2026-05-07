@@ -9,8 +9,9 @@
         "build:ci": "npm ci --silent && npx vite build"
     },
     "dependencies": {
+        "@element-plus/icons-vue": "^2.3.2",
         "3dmol": "^2.5.4",
-        "axios": "^0.27.2",
+        "axios": "^1.7.9",
         "element-plus": "^2.3.8",
         "plotly.js-dist-min": "^3.5.0",
         "three": "^0.183.2",
@@ -18,10 +19,13 @@
         "vue-router": "^4.2.4"
     },
     "devDependencies": {
-        "@vitejs/plugin-vue": "^4.3.4",
+        "@vitejs/plugin-vue": "^6.0.6",
         "cross-env": "^10.1.0",
         "esbuild-wasm": "^0.27.1",
-        "vite": "^4.4.7"
+        "vite": "^8.0.10"
+    },
+    "overrides": {
+        "esbuild": "^0.25.0"
     },
     "engines": {
         "node": ">=18.0.0",
