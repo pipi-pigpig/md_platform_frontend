@@ -232,6 +232,7 @@
           <el-input v-model="newSystem.name" placeholder="如：LiPF6 1M in EC/DMC 1:1" />
         </el-form-item>
 
+        
         <el-form-item label="锂盐种类" prop="saltFormula" required>
           <el-select v-model="newSystem.saltFormula" style="width: 100%;">
             <el-option label="LiPF₆" value="LiPF6" />
