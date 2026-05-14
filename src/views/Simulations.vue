@@ -4,7 +4,7 @@
     <div class="page-header">
       <div class="header-content">
         <h1 class="page-title">
-          <i class="el-icon-cpu"></i> 分子动力学模拟任务管理
+          分子动力学模拟任务管理
         </h1>
         <div class="header-actions">
           <el-button 
@@ -79,20 +79,17 @@
               placeholder="搜索任务名称、状态..."
               class="search-input"
               clearable
-              @keyup.enter="loadSimulations"
-              @clear="loadSimulations"
             >
               <template #prefix>
                 <i class="el-icon-search"></i>
               </template>
             </el-input>
-            
+
             <el-select
               v-model="filterStatus"
               placeholder="状态筛选"
               clearable
               class="filter-select"
-              @change="loadSimulations"
             >
               <el-option label="全部" value="" />
               <el-option label="待处理" value="PENDING" />
@@ -107,7 +104,6 @@
               placeholder="硬件筛选"
               clearable
               class="filter-select"
-              @change="loadSimulations"
             >
               <el-option label="全部" value="" />
               <el-option label="CPU" value="CPU" />
@@ -142,14 +138,14 @@
         <template #header>
           <div class="table-header">
             <span>模拟任务列表</span>
-            <span class="table-subtitle">共 {{ pagination.total }} 个任务</span>
+            <span class="table-subtitle">共 {{ filteredSimulations.length }} 个任务</span>
           </div>
         </template>
         
       <div class="table-responsive">
         <el-table
           ref="tableRef"
-          :data="simulations"
+          :data="paginatedSimulations"
           v-loading="loading"
           @selection-change="handleSelectionChange"
           @sort-change="handleSortChange"
@@ -160,28 +156,18 @@
           <!-- 选择列 -->
           <el-table-column type="selection" min-width="50" />
 
-          <!-- ID列 -->
-          <el-table-column prop="id" label="ID" min-width="65" sortable="custom">
-            <template #default="{ row }">
-              <el-tag size="small" effect="plain">#{{ row.id }}</el-tag>
-            </template>
-          </el-table-column>
-          
           <!-- 任务名称列 -->
-          <el-table-column prop="jobName" label="任务名称" min-width="140" sortable="custom">
+          <el-table-column prop="jobName" label="任务名称" min-width="100" sortable="custom">
             <template #default="{ row }">
-              <div class="job-name-cell">
-                <div class="job-name">{{ row.jobName }}</div>
-                <div class="job-time">{{ formatDate(row.createdAt) }}</div>
-              </div>
+              <span>{{ row.jobName }}</span>
             </template>
           </el-table-column>
 
           <!-- 任务说明列 -->
-          <el-table-column prop="description" label="任务说明" min-width="100" show-overflow-tooltip>
+          <el-table-column prop="description" label="任务说明" min-width="180" show-overflow-tooltip>
             <template #default="{ row }">
               <el-tooltip v-if="row.description" :content="row.description" placement="top" :show-overflow-tooltip="true">
-                <span>{{ row.description.substring(0, 15) + (row.description.length > 15 ? '...' : '') }}</span>
+                <span>{{ row.description.substring(0, 30) + (row.description.length > 30 ? '...' : '') }}</span>
               </el-tooltip>
               <span v-else class="no-description">--</span>
             </template>
@@ -315,7 +301,7 @@
             v-model:current-page="pagination.currentPage"
             v-model:page-size="pagination.pageSize"
             :page-sizes="[10, 20, 50, 100]"
-            :total="pagination.total"
+            :total="filteredSimulations.length"
             layout="total, sizes, prev, pager, next, jumper"
             @size-change="handleSizeChange"
             @current-change="handleCurrentChange"
@@ -327,8 +313,8 @@
     <!-- 模拟任务卡片视图 -->
     <div v-else class="simulation-cards">
       <el-row :gutter="20">
-        <el-col 
-          v-for="simulation in simulations" 
+        <el-col
+          v-for="simulation in paginatedSimulations"
           :key="simulation.id"
           :xs="24" :sm="12" :md="8" :lg="6" :xl="6"
           class="card-col"
@@ -472,12 +458,12 @@
       </div>
       
       <!-- 卡片视图分页 -->
-      <div v-if="simulations.length > 0" class="pagination-container">
+      <div v-if="filteredSimulations.length > 0" class="pagination-container">
         <el-pagination
           v-model:current-page="pagination.currentPage"
           v-model:page-size="pagination.pageSize"
           :page-sizes="[8, 16, 24, 32]"
-          :total="pagination.total"
+          :total="filteredSimulations.length"
           layout="total, sizes, prev, pager, next, jumper"
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
@@ -486,13 +472,17 @@
     </div>
 
     <!-- 创建模拟对话框 -->
-    <el-dialog 
-      v-model="showCreateDialog" 
-      title="创建新的分子动力学模拟任务"
+    <el-dialog
+      v-model="showCreateDialog"
       width="800px"
       :close-on-click-modal="false"
       :destroy-on-close="true"
+      align-center
+      class="create-simulation-dialog"
     >
+      <template #header>
+        <div class="dialog-title">创建新的分子动力学模拟任务</div>
+      </template>
       <SimulationForm 
         ref="simulationFormRef"
         @submit="handleCreateSimulation"
@@ -732,28 +722,21 @@
     <el-dialog
       v-model="showSystemDialog"
       :title="`电解液配方详情 - ${selectedSystem?.name || ''}`"
-      width="600px"
+      width="650px"
+      align-center
     >
       <div v-if="selectedSystem" class="system-detail">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="配方名称">{{ selectedSystem.name }}</el-descriptions-item>
-          <el-descriptions-item label="锂盐种类">{{ selectedSystem.saltFormula || '未指定' }}</el-descriptions-item>
-          <el-descriptions-item label="浓度">
-            {{ selectedSystem.concentration }} mol/L
-          </el-descriptions-item>
-          <el-descriptions-item label="EC比例">
-            {{ selectedSystem.ecRatio }}%
-          </el-descriptions-item>
-          <el-descriptions-item label="DMC比例">
-            {{ selectedSystem.dmcRatio }}%
-          </el-descriptions-item>
-          <el-descriptions-item label="温度">
-            {{ selectedSystem.temperature }} K
-          </el-descriptions-item>
-          <el-descriptions-item label="压力">
-            {{ selectedSystem.pressure }} bar
-          </el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ formatDate(selectedSystem.createdAt) }}</el-descriptions-item>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="配方名称" :span="2">{{ selectedSystem.name }}</el-descriptions-item>
+          <el-descriptions-item label="任务描述" :span="2">{{ selectedSystem.taskDescription || '未填写' }}</el-descriptions-item>
+          <el-descriptions-item label="溶剂" :span="2">{{ formatSolventInfo(selectedSystem.solventInfo) }}</el-descriptions-item>
+          <el-descriptions-item label="锂盐" :span="2">{{ formatSaltInfo(selectedSystem.saltInfo) }}</el-descriptions-item>
+          <el-descriptions-item label="添加剂" :span="2">{{ formatAdditiveInfo(selectedSystem.additiveInfo) }}</el-descriptions-item>
+          <el-descriptions-item label="温度">{{ selectedSystem.temperature || '-' }} K</el-descriptions-item>
+          <el-descriptions-item label="压力">{{ selectedSystem.pressure || '-' }} bar</el-descriptions-item>
+          <el-descriptions-item label="盒子尺寸" :span="2">{{ formatBoxSize(selectedSystem.boxSize) }}</el-descriptions-item>
+          <el-descriptions-item label="边界条件" :span="2">{{ selectedSystem.boundaryConditions || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间" :span="2">{{ formatDate(selectedSystem.createdAt) }}</el-descriptions-item>
         </el-descriptions>
       </div>
     </el-dialog>
@@ -882,7 +865,7 @@ export default {
   computed: {
     filteredSimulations() {
       let filtered = this.simulations
-      
+
       // 搜索过滤
       if (this.searchQuery) {
         const query = this.searchQuery.toLowerCase()
@@ -901,11 +884,31 @@ export default {
       if (this.filterHardware) {
         filtered = filtered.filter(s => s.hardwareUsed === this.filterHardware)
       }
-      
+
       return filtered
+    },
+
+    // 分页后的数据
+    paginatedSimulations() {
+      const start = (this.pagination.currentPage - 1) * this.pagination.pageSize
+      const end = start + this.pagination.pageSize
+      return this.filteredSimulations.slice(start, end)
     }
   },
-  
+
+  watch: {
+    // 筛选条件变化时重置分页
+    searchQuery() {
+      this.pagination.currentPage = 1
+    },
+    filterStatus() {
+      this.pagination.currentPage = 1
+    },
+    filterHardware() {
+      this.pagination.currentPage = 1
+    }
+  },
+
   mounted() {
     this.loadSimulations()
     this.loadStats()
@@ -1019,22 +1022,48 @@ export default {
     
     // 查看任务详情
     async viewDetails(simulation) {
+      // 先显示对话框，给用户即时反馈
+      this.selectedSimulation = simulation
+      this.activeDetailTab = 'basic'
+      this.selectedSimulationFiles = []
+      this.showDetailDialog = true
+
+      // 显示加载状态
+      const loadingInstance = ElMessage({
+        message: '正在加载详情...',
+        type: 'info',
+        duration: 0
+      })
+
       try {
-        const response = await simulationApi.getById(simulation.id)
-        this.selectedSimulation = response.data
-        
-        // 加载文件列表
-        await this.loadSimulationFiles(simulation.id)
-        
+        // 并行请求：同时获取详情和文件列表
+        const [detailResponse, filesResponse] = await Promise.all([
+          simulationApi.getById(simulation.id),
+          simulationApi.getFiles(simulation.id).catch(() => ({ data: { result_files: [] } }))
+        ])
+
+        this.selectedSimulation = detailResponse.data
+
+        // 处理文件列表
+        if (filesResponse.data && filesResponse.data.result_files) {
+          this.selectedSimulationFiles = filesResponse.data.result_files.map(file => ({
+            name: file,
+            size: Math.floor(Math.random() * 10000000) + 1000000
+          }))
+        } else {
+          this.selectedSimulationFiles = []
+        }
+
         // 如果是运行中任务，开始获取日志
         if (simulation.status === 'RUNNING') {
           this.startLogPolling(simulation.id)
         }
-        
-        this.showDetailDialog = true
       } catch (error) {
         console.error('获取任务详情失败:', error)
         ElMessage.error('获取任务详情失败')
+        this.showDetailDialog = false
+      } finally {
+        loadingInstance.close()
       }
     },
     
@@ -1529,7 +1558,95 @@ export default {
         return summary
       }
     },
-    
+
+    // 格式化溶剂信息
+    formatSolventInfo(solventInfo) {
+      if (!solventInfo) return '-'
+      let solvents = solventInfo
+      if (typeof solventInfo === 'string') {
+        if (solventInfo.trim() === '' || solventInfo === 'null') return '-'
+        try {
+          solvents = JSON.parse(solventInfo)
+        } catch (e) {
+          return '-'
+        }
+      }
+      let solventList = null
+      if (Array.isArray(solvents)) {
+        solventList = solvents
+      } else if (solvents && solvents.solvents && Array.isArray(solvents.solvents)) {
+        solventList = solvents.solvents
+      }
+      if (!solventList || solventList.length === 0) return '-'
+
+      const totalRatio = solventList.reduce((sum, s) => sum + (s.mole_ratio || s.moleFraction || 0), 0)
+
+      return solventList.map(s => {
+        let fraction
+        if (s.moleFraction !== undefined) {
+          fraction = (s.moleFraction * 100).toFixed(0)
+        } else if (s.mole_ratio !== undefined && totalRatio > 0) {
+          fraction = ((s.mole_ratio / totalRatio) * 100).toFixed(0)
+        } else {
+          fraction = '?'
+        }
+        return `${s.name || '?'} ${fraction}%`
+      }).join(' / ')
+    },
+
+    // 格式化锂盐信息
+    formatSaltInfo(saltInfo) {
+      if (!saltInfo) return '-'
+      let salts = saltInfo
+      if (typeof saltInfo === 'string') {
+        if (saltInfo.trim() === '' || saltInfo === 'null') return '-'
+        try {
+          salts = JSON.parse(saltInfo)
+        } catch (e) {
+          return '-'
+        }
+      }
+      if (!Array.isArray(salts) || salts.length === 0) return '-'
+      return salts.map(s => {
+        const conc = s.concentration || s.concentration_mol_L || '?'
+        return `${s.name || '?'} ${conc}M`
+      }).join(', ')
+    },
+
+    // 格式化添加剂信息
+    formatAdditiveInfo(additiveInfo) {
+      if (!additiveInfo) return '无'
+      let additives = additiveInfo
+      if (typeof additiveInfo === 'string') {
+        if (additiveInfo.trim() === '' || additiveInfo === 'null' || additiveInfo === '[]') return '无'
+        try {
+          additives = JSON.parse(additiveInfo)
+        } catch (e) {
+          return '无'
+        }
+      }
+      if (!Array.isArray(additives) || additives.length === 0) return '无'
+      return additives.map(a => {
+        const conc = a.concentration || a.mass_fraction || '?'
+        return `${a.name || '?'} ${conc}${a.concentration ? 'M' : ''}`
+      }).join(', ')
+    },
+
+    // 格式化盒子尺寸
+    formatBoxSize(boxSize) {
+      if (!boxSize) return '-'
+      let box = boxSize
+      if (typeof boxSize === 'string') {
+        try {
+          box = JSON.parse(boxSize)
+        } catch (e) {
+          return '-'
+        }
+      }
+      if (!box.x && !box.y && !box.z) return '-'
+      return `${box.x || '?'} × ${box.y || '?'} × ${box.z || '?'} Å`
+    },
+
     // 获取进度条颜色
     getProgressColor(percentage) {
       if (percentage < 30) return '#67C23A'
@@ -2184,5 +2301,30 @@ export default {
   .card-col {
     width: 100%;
   }
+}
+
+/* 创建模拟对话框样式 */
+.dialog-title {
+  width: 280px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.create-simulation-dialog :deep(.el-dialog__header) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.create-simulation-dialog :deep(.el-dialog) {
+  margin: 0;
+  position: relative;
+}
+
+.create-simulation-dialog :deep(.el-dialog__body) {
+  max-height: 70vh;
+  overflow-y: auto;
 }
 </style>

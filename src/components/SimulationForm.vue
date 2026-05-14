@@ -35,7 +35,7 @@
           <el-select
             v-model="form.systemId"
             placeholder="选择已保存的电解液配方"
-            style="flex: 1;"
+            style="width: 400px;"
             clearable
             filterable
           >
@@ -56,7 +56,6 @@
             type="primary"
             plain
             @click="showCreateSystemDialog = true"
-            icon="el-icon-plus"
           >
             新建配方
           </el-button>
@@ -109,6 +108,9 @@
             />
             <span class="unit">%</span>
           </div>
+          <div v-if="showSolventRatioError && form.solventType === 'EC_DMC'" class="solvent-ratio-error">
+            EC + DMC = {{ solventRatioSum }}%，需等于100%
+          </div>
         </el-form-item>
 
         <el-form-item label="DMC比例 (%)">
@@ -154,16 +156,17 @@
 
       <!-- 参数配置 -->
       <el-form-item label="额外参数">
-        <div style="margin-bottom: 10px;">
-          <el-button
-            type="text"
-            size="small"
-            @click="showAdvancedParams = !showAdvancedParams"
-            icon="el-icon-setting"
-          >
-            {{ showAdvancedParams ? '隐藏高级参数' : '显示高级参数' }}
-          </el-button>
-        </div>
+        <el-button
+          type="primary"
+          link
+          size="small"
+          @click="showAdvancedParams = !showAdvancedParams"
+        >
+          {{ showAdvancedParams ? '隐藏高级参数' : '显示高级参数' }}
+        </el-button>
+        <span class="params-status" v-if="!showAdvancedParams && form.parameters && form.parameters !== '{}'">
+          （已配置 {{ paramCount }} 项）
+        </span>
 
         <el-input
           v-if="showAdvancedParams"
@@ -173,16 +176,8 @@
           placeholder="请输入JSON格式的额外参数（可选）"
           resize="none"
           @blur="validateJSON"
+          style="margin-top: 10px;"
         />
-        <div v-else class="params-summary">
-          <span v-if="form.parameters && form.parameters !== '{}'">
-            已配置 {{ paramCount }} 个额外参数
-          </span>
-          <span v-else style="color: #909399;">
-            使用默认参数
-          </span>
-        </div>
-        <div class="form-tip">可配置能量最小化步数、采样间隔等高级参数</div>
       </el-form-item>
 
       <!-- 预计用时 -->
@@ -202,14 +197,13 @@
           @click="submitForm"
           :loading="submitting"
           :disabled="!formValid"
-          icon="el-icon-video-play"
         >
           提交模拟
         </el-button>
-        <el-button @click="resetForm" icon="el-icon-refresh">
+        <el-button @click="resetForm">
           重置
         </el-button>
-        <el-button @click="$emit('cancel')" icon="el-icon-close">
+        <el-button @click="$emit('cancel')">
           取消
         </el-button>
       </el-form-item>
@@ -300,6 +294,9 @@
             />
             <span class="unit">%</span>
           </div>
+          <div v-if="showNewSystemSolventRatioError && newSystem.solventType === 'EC_DMC'" class="solvent-ratio-error">
+            EC + DMC = {{ newSystemSolventRatioSum }}%，需等于100%
+          </div>
         </el-form-item>
 
         <el-form-item label="DMC比例 (%)">
@@ -338,14 +335,14 @@ export default {
         description: '',
         computingUnit: '',
         systemId: null,
-        // 配方组成
-        saltType: 'LiPF6',
-        solventType: 'EC_DMC',
-        concentration: 1.0,
-        ecRatio: 50,
-        dmcRatio: 50,
-        temperature: 298.15,
-        pressure: 1.0,
+        // 配方组成 - 初始为空，选择配方后填充
+        saltType: '',
+        solventType: '',
+        concentration: null,
+        ecRatio: null,
+        dmcRatio: null,
+        temperature: null,
+        pressure: null,
         // 高级参数
         parameters: '{}',
       },
@@ -381,17 +378,19 @@ export default {
       systems: [],
       showAdvancedParams: false,
       showCreateSystemDialog: false,
+      showSolventRatioError: false,
+      showNewSystemSolventRatioError: false,
 
       // 新建电解液配方表单
       newSystem: {
         name: '',
-        saltFormula: 'LiPF6',
-        solventType: 'EC_DMC',
-        concentration: 1.0,
-        temperature: 298.15,
-        pressure: 1.0,
-        ecRatio: 50,
-        dmcRatio: 50
+        saltFormula: '',
+        solventType: '',
+        concentration: null,
+        temperature: null,
+        pressure: null,
+        ecRatio: null,
+        dmcRatio: null
       },
 
       // 缓存已存在的任务名称，避免重复
@@ -468,6 +467,16 @@ export default {
       return this.systems.find(s => s.id === this.form.systemId)
     },
 
+    // 溶剂比例总和
+    solventRatioSum() {
+      return (this.form.ecRatio || 0) + (this.form.dmcRatio || 0)
+    },
+
+    // 新建配方溶剂比例总和
+    newSystemSolventRatioSum() {
+      return (this.newSystem.ecRatio || 0) + (this.newSystem.dmcRatio || 0)
+    },
+
     // 表单是否有效
     formValid() {
       return this.form.jobName &&
@@ -488,19 +497,23 @@ export default {
   watch: {
     // 监听配方选择变化，自动填充配方参数
     'form.systemId': {
-      handler(newVal) {
+      async handler(newVal) {
         if (newVal) {
-          const selected = this.systems.find(s => s.id === newVal)
-          if (selected) {
-            // 从选中的配方填充表单参数
-            this.form.saltType = selected.saltFormula || 'LiPF6'
-            // 溶剂类型映射：后端格式 "EC/DMC" -> 前端格式 "EC_DMC"
-            this.form.solventType = this.mapSolventType(selected.solventType)
-            this.form.concentration = selected.concentration || 1.0
-            this.form.temperature = selected.temperature || 298.15
-            this.form.pressure = selected.pressure || 1.0
-            this.form.ecRatio = selected.ecRatio || 50
-            this.form.dmcRatio = selected.dmcRatio || 50
+          // 调用 API 获取完整配方详情
+          try {
+            const response = await systemApi.getById(newVal)
+            const system = response.data
+            if (system) {
+              // 从完整的配方数据填充表单参数
+              this.fillFormFromSystem(system)
+            }
+          } catch (error) {
+            console.error('获取配方详情失败:', error)
+            // 如果 API 调用失败，尝试从本地列表获取
+            const selected = this.systems.find(s => s.id === newVal)
+            if (selected) {
+              this.fillFormFromSystem(selected)
+            }
           }
         }
       },
@@ -522,6 +535,99 @@ export default {
         'OTHER': 'OTHER'
       }
       return typeMap[backendType] || backendType.replace('/', '_')
+    },
+
+    // 从配方数据填充表单参数
+    fillFormFromSystem(system) {
+      // 填充温度和压力
+      this.form.temperature = system.temperature || 298.15
+      this.form.pressure = system.pressure || 1.0
+
+      // 解析溶剂信息
+      if (system.solventInfo) {
+        const solventData = this.parseJsonField(system.solventInfo)
+        if (solventData) {
+          // 判断溶剂类型和比例
+          const solvents = Array.isArray(solventData) ? solventData : (solventData.solvents || [])
+
+          if (solvents.length > 0) {
+            // 判断溶剂类型
+            const solventNames = solvents.map(s => s.name)
+            if (solventNames.includes('EC') && solventNames.includes('DMC')) {
+              this.form.solventType = 'EC_DMC'
+              // 计算比例
+              const totalRatio = solvents.reduce((sum, s) => sum + (s.mole_ratio || s.moleFraction || 0), 0)
+              const ecSolvent = solvents.find(s => s.name === 'EC')
+              const dmcSolvent = solvents.find(s => s.name === 'DMC')
+              if (totalRatio > 0) {
+                this.form.ecRatio = Math.round((ecSolvent?.mole_ratio || ecSolvent?.moleFraction || 0) / totalRatio * 100)
+                this.form.dmcRatio = Math.round((dmcSolvent?.mole_ratio || dmcSolvent?.moleFraction || 0) / totalRatio * 100)
+              }
+            } else if (solventNames.includes('EC') && solventNames.includes('EMC')) {
+              this.form.solventType = 'EC_EMC'
+              const totalRatio = solvents.reduce((sum, s) => sum + (s.mole_ratio || s.moleFraction || 0), 0)
+              const ecSolvent = solvents.find(s => s.name === 'EC')
+              const emcSolvent = solvents.find(s => s.name === 'EMC')
+              if (totalRatio > 0) {
+                this.form.ecRatio = Math.round((ecSolvent?.mole_ratio || ecSolvent?.moleFraction || 0) / totalRatio * 100)
+                this.form.dmcRatio = Math.round((emcSolvent?.mole_ratio || emcSolvent?.moleFraction || 0) / totalRatio * 100)
+              }
+            } else if (solventNames.includes('EC') && !solventNames.includes('DMC') && !solventNames.includes('EMC')) {
+              this.form.solventType = 'EC'
+              this.form.ecRatio = 100
+              this.form.dmcRatio = 0
+            } else if (solventNames.includes('DMC') && !solventNames.includes('EC')) {
+              this.form.solventType = 'DMC'
+              this.form.ecRatio = 0
+              this.form.dmcRatio = 100
+            } else if (solventNames.includes('WATER') || solventNames.includes('Water')) {
+              this.form.solventType = 'WATER'
+              this.form.ecRatio = 0
+              this.form.dmcRatio = 0
+            } else {
+              this.form.solventType = 'OTHER'
+              this.form.ecRatio = 50
+              this.form.dmcRatio = 50
+            }
+          }
+        }
+      }
+
+      // 解析盐信息
+      if (system.saltInfo) {
+        const saltData = this.parseJsonField(system.saltInfo)
+        if (saltData && Array.isArray(saltData) && saltData.length > 0) {
+          const salt = saltData[0]
+          // 盐类型映射
+          const saltName = salt.name || ''
+          if (saltName.includes('LiPF6') || saltName.includes('LiPF')) {
+            this.form.saltType = 'LiPF6'
+          } else if (saltName.includes('LiFSI')) {
+            this.form.saltType = 'LiFSI'
+          } else if (saltName.includes('LiTFSI')) {
+            this.form.saltType = 'LiTFSI'
+          } else if (saltName.includes('NaCl')) {
+            this.form.saltType = 'NaCl'
+          }
+          // 浓度
+          this.form.concentration = salt.concentration || salt.concentration_mol_L || 1.0
+        }
+      }
+    },
+
+    // 解析 JSON 字段
+    parseJsonField(field) {
+      if (!field) return null
+      if (typeof field === 'object') return field
+      if (typeof field === 'string') {
+        if (field.trim() === '' || field === 'null') return null
+        try {
+          return JSON.parse(field)
+        } catch (e) {
+          return null
+        }
+      }
+      return null
     },
 
     // 加载配方列表
@@ -584,13 +690,12 @@ export default {
 
     // 创建新配方
     async createSystem() {
-      // 检查溶剂比例总和为100%（当溶剂类型是混合时）
-      if (this.newSystem.solventType.includes('_')) {
-        const total = (this.newSystem.ecRatio || 0) + (this.newSystem.dmcRatio || 0)
-        if (total !== 100) {
-          this.$message.warning(`当前溶剂比例总和为 ${total}%，建议调整为 100%`)
-        }
+      // 检查EC/DMC溶剂比例总和必须为100%
+      if (this.newSystem.solventType === 'EC_DMC' && this.newSystemSolventRatioSum !== 100) {
+        this.showNewSystemSolventRatioError = true
+        return
       }
+      this.showNewSystemSolventRatioError = false
 
       try {
         const response = await systemApi.create(this.newSystem)
@@ -646,13 +751,12 @@ export default {
         return
       }
 
-      // 检查溶剂比例总和为100%（当溶剂类型是混合时）
-      if (this.form.solventType.includes('_')) {
-        const total = (this.form.ecRatio || 0) + (this.form.dmcRatio || 0)
-        if (total !== 100) {
-          this.$message.warning(`当前溶剂比例总和为 ${total}%，建议调整为 100%`)
-        }
+      // 检查EC/DMC溶剂比例总和必须为100%
+      if (this.form.solventType === 'EC_DMC' && this.solventRatioSum !== 100) {
+        this.showSolventRatioError = true
+        return
       }
+      this.showSolventRatioError = false
 
       // 准备表单数据
       const formData = {
@@ -697,13 +801,13 @@ export default {
         description: '',
         computingUnit: '',
         systemId: null,
-        saltType: 'LiPF6',
-        solventType: 'EC_DMC',
-        concentration: 1.0,
-        ecRatio: 50,
-        dmcRatio: 50,
-        temperature: 298.15,
-        pressure: 1.0,
+        saltType: '',
+        solventType: '',
+        concentration: null,
+        ecRatio: null,
+        dmcRatio: null,
+        temperature: null,
+        pressure: null,
         parameters: '{}'
       }
       this.$message.success('表单已重置')
@@ -737,12 +841,20 @@ export default {
   min-width: 30px;
 }
 
-.params-summary {
-  padding: 8px 12px;
-  background: #f5f7fa;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #606266;
+.params-status {
+  font-size: 12px;
+  color: #67C23A;
+  margin-left: 8px;
+}
+
+.solvent-ratio-error {
+  font-size: 12px;
+  color: #F56C6C;
+  margin-top: 4px;
+}
+
+.time-estimate {
+  color: #E6A23C;
 }
 
 .time-estimate {
