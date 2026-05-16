@@ -358,6 +358,10 @@ export default {
         const response = await systemApi.getAll()
         this.systems = response.data || []
       } catch (error) {
+        // 如果是静默错误（请求被取消），不显示提示
+        if (error.silent) {
+          return
+        }
         console.error('加载配方列表失败:', error)
         this.$message.error('加载配方列表失败')
       } finally {

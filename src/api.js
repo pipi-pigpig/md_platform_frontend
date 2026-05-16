@@ -1,7 +1,8 @@
 import axios from 'axios'
 
-// 用于跟踪用户是否已登出
-let isLoggedOut = false
+// 会话版本号 - 用于跟踪请求的有效性
+// 每次登出时会递增，使所有旧会话的请求失效
+let currentSessionVersion = Date.now()
 
 // 存储所有pending请求的取消函数
 const pendingRequests = new Map()
@@ -41,17 +42,32 @@ export function cancelAllRequests() {
     pendingRequests.clear()
 }
 
-// 设置登出状态
-export function setLoggedOut(status) {
-    isLoggedOut = status
-    if (status) {
-        cancelAllRequests()
-    }
+// 使当前会话失效（登出时调用）
+// 递增版本号并取消所有pending请求
+export function invalidateSession() {
+    currentSessionVersion = Date.now()
+    cancelAllRequests()
 }
 
-// 获取登出状态
-export function getLoggedOut() {
-    return isLoggedOut
+// 获取当前会话版本号
+export function getSessionVersion() {
+    return currentSessionVersion
+}
+
+// 兼容旧API：设置登出状态
+// true = 使会话失效，false = 无操作（新会话在登录时自动开始）
+export function setLoggedOut(status) {
+    if (status) {
+        invalidateSession()
+    }
+    // 注意：不再需要在登录前调用 setLoggedOut(false)
+    // 新会话版本在 invalidateSession() 中自动生成
+}
+
+// 检查请求是否属于当前有效会话
+function isRequestFromCurrentSession(config) {
+    const requestSessionVersion = config._sessionVersion
+    return requestSessionVersion === currentSessionVersion
 }
 
 // 创建axios实例
@@ -66,13 +82,8 @@ const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
     config => {
-        // 如果已登出，取消请求
-        if (isLoggedOut) {
-            const controller = new AbortController()
-            controller.abort()
-            config.signal = controller.signal
-            return config
-        }
+        // 记录请求发起时的会话版本
+        config._sessionVersion = currentSessionVersion
 
         // 添加token
         const token = localStorage.getItem('token')
@@ -95,10 +106,6 @@ api.interceptors.response.use(
     response => {
         // 请求成功，从pending列表移除
         removePendingRequest(response.config)
-
-        // 成功响应时重置登出状态
-        isLoggedOut = false
-
         return response
     },
     error => {
@@ -112,8 +119,9 @@ api.interceptors.response.use(
             return Promise.reject({ ...error, silent: true })
         }
 
-        // 如果已登出，静默处理所有错误
-        if (isLoggedOut) {
+        // 检查请求是否来自当前有效会话
+        // 如果会话版本不匹配，说明请求属于已登出的旧会话，静默处理
+        if (error.config && !isRequestFromCurrentSession(error.config)) {
             return Promise.reject({ ...error, silent: true })
         }
 

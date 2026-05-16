@@ -136,6 +136,10 @@ export default {
           console.log('统计API暂不可用')
         }
       } catch (error) {
+        // 如果是静默错误（请求被取消），不显示提示
+        if (error.silent) {
+          return
+        }
         console.error('加载模拟任务失败:', error)
       } finally {
         this.loading = false

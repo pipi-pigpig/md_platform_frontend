@@ -107,7 +107,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { authApi, setLoggedOut } from '../api.js'
+import { authApi } from '../api.js'
 import MolecularBackground from '../components/MolecularBackground.vue'
 
 export default {
@@ -176,9 +176,6 @@ export default {
 
       loading.value = true
 
-      // 发出登录请求前重置登出状态，确保请求不会被取消
-      setLoggedOut(false)
-
       try {
         const response = await authApi.login(loginForm)
         if (response.data.success) {
@@ -207,9 +204,6 @@ export default {
       }
 
       registerLoading.value = true
-
-      // 发出注册请求前重置登出状态，确保请求不会被取消
-      setLoggedOut(false)
 
       try {
         const response = await authApi.register({
