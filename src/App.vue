@@ -55,6 +55,7 @@
 <script>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { setLoggedOut, cancelAllRequests } from './api.js'
 
 export default {
   name: 'App',
@@ -80,6 +81,10 @@ export default {
     })
 
     const handleLogout = () => {
+      // 设置登出状态，取消所有pending请求
+      setLoggedOut(true)
+      cancelAllRequests()
+
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       router.push('/login')

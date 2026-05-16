@@ -1,5 +1,59 @@
 import axios from 'axios'
 
+// 用于跟踪用户是否已登出
+let isLoggedOut = false
+
+// 存储所有pending请求的取消函数
+const pendingRequests = new Map()
+
+// 生成请求的唯一标识
+function generateRequestKey(config) {
+    const { method, url } = config
+    return `${method}-${url}`
+}
+
+// 添加请求到pending列表
+function addPendingRequest(config) {
+    const requestKey = generateRequestKey(config)
+    if (pendingRequests.has(requestKey)) {
+        const cancel = pendingRequests.get(requestKey)
+        cancel && cancel()
+    }
+    config.requestKey = requestKey
+    const controller = new AbortController()
+    config.signal = controller.signal
+    pendingRequests.set(requestKey, () => controller.abort())
+}
+
+// 从pending列表移除请求
+function removePendingRequest(config) {
+    const requestKey = config.requestKey || generateRequestKey(config)
+    if (pendingRequests.has(requestKey)) {
+        pendingRequests.delete(requestKey)
+    }
+}
+
+// 取消所有pending请求
+export function cancelAllRequests() {
+    pendingRequests.forEach((cancel) => {
+        cancel && cancel()
+    })
+    pendingRequests.clear()
+}
+
+// 设置登出状态
+export function setLoggedOut(status) {
+    isLoggedOut = status
+    if (status) {
+        cancelAllRequests()
+    }
+}
+
+// 获取登出状态
+export function getLoggedOut() {
+    return isLoggedOut
+}
+
 // 创建axios实例
 const api = axios.create({
     baseURL: '/api',
@@ -12,11 +66,23 @@ const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
     config => {
-        // 可以在这里添加认证token等
+        // 如果已登出，取消请求
+        if (isLoggedOut) {
+            const controller = new AbortController()
+            controller.abort()
+            config.signal = controller.signal
+            return config
+        }
+
+        // 添加token
         const token = localStorage.getItem('token')
         if (token) {
             config.headers.Authorization = `Bearer ${token}`
         }
+
+        // 添加到pending列表
+        addPendingRequest(config)
+
         return config
     },
     error => {
@@ -27,9 +93,30 @@ api.interceptors.request.use(
 // 响应拦截器
 api.interceptors.response.use(
     response => {
+        // 请求成功，从pending列表移除
+        removePendingRequest(response.config)
+
+        // 成功响应时重置登出状态
+        isLoggedOut = false
+
         return response
     },
     error => {
+        // 请求失败，从pending列表移除
+        if (error.config) {
+            removePendingRequest(error.config)
+        }
+
+        // 如果是请求被取消，静默处理
+        if (axios.isCancel(error) || error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+            return Promise.reject({ ...error, silent: true })
+        }
+
+        // 如果已登出，静默处理所有错误
+        if (isLoggedOut) {
+            return Promise.reject({ ...error, silent: true })
+        }
+
         // 统一错误处理
         if (error.response) {
             switch (error.response.status) {
@@ -37,14 +124,19 @@ api.interceptors.response.use(
                     // 未授权，清除 token 并跳转到登录页
                     localStorage.removeItem('token')
                     localStorage.removeItem('user')
-                    // 避免在登录页重复跳转
                     if (window.location.pathname !== '/login') {
                         window.location.href = '/login'
                     }
+                    // 标记为静默错误，不显示提示
+                    error.silent = true
                     break
                 case 403:
+                    // 权限不足，可能是token过期，静默处理
+                    error.silent = true
+                    break
                 case 404:
-                    // 资源不存在或权限不足，静默处理
+                    // 资源不存在，静默处理
+                    error.silent = true
                     break
                 case 500:
                     console.warn('服务器内部错误')

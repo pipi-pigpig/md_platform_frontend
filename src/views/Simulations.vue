@@ -7,25 +7,23 @@
           分子动力学模拟任务管理
         </h1>
         <div class="header-actions">
-          <el-button 
-            type="primary" 
+          <el-button
+            type="primary"
             @click="handleNewSimulation"
-            icon="el-icon-video-play"
             size="large"
           >
-            <i class="el-icon-plus"></i> 新建模拟任务
+            新建模拟任务
           </el-button>
-          <el-button 
+          <el-button
             @click="refreshData"
             :loading="loading"
-            icon="el-icon-refresh"
             size="large"
           >
             刷新
           </el-button>
           <el-dropdown @command="handleBatchCommand" v-if="selectedSimulations.length > 0">
             <el-button type="info" size="large">
-              批量操作 <i class="el-icon-arrow-down"></i>
+              批量操作
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
@@ -114,17 +112,17 @@
           
           <div class="filter-right">
             <el-button-group>
-              <el-button 
+              <el-button
                 @click="changeViewMode('table')"
                 :type="viewMode === 'table' ? 'primary' : ''"
               >
-                <i class="el-icon-s-grid"></i> 表格
+                表格
               </el-button>
-              <el-button 
+              <el-button
                 @click="changeViewMode('card')"
                 :type="viewMode === 'card' ? 'primary' : ''"
               >
-                <i class="el-icon-s-data"></i> 卡片
+                卡片
               </el-button>
             </el-button-group>
           </div>
@@ -328,7 +326,7 @@
                 </div>
                 <div class="card-actions">
                   <el-dropdown @command="handleRowCommand(simulation, $event)" trigger="click">
-                    <el-button type="text" icon="el-icon-more" circle size="small" />
+                    <el-button type="text" circle size="small">⋯</el-button>
                     <template #dropdown>
                       <el-dropdown-menu>
                         <el-dropdown-item command="view">查看详情</el-dropdown-item>
@@ -413,31 +411,28 @@
             <!-- 卡片底部 -->
             <template #footer>
               <div class="card-footer">
-                <el-button 
-                  type="primary" 
-                  size="small" 
+                <el-button
+                  type="primary"
+                  size="small"
                   @click="viewDetails(simulation)"
-                  icon="el-icon-view"
                 >
                   查看详情
                 </el-button>
-                
-                <el-button 
-                  type="warning" 
-                  size="small" 
+
+                <el-button
+                  type="warning"
+                  size="small"
                   @click="cancelSimulation(simulation)"
                   v-if="simulation.status === 'RUNNING'"
-                  icon="el-icon-close"
                 >
                   取消
                 </el-button>
-                
-                <el-button 
-                  type="danger" 
-                  size="small" 
+
+                <el-button
+                  type="danger"
+                  size="small"
                   @click="deleteSimulation(simulation)"
                   v-if="simulation.status !== 'RUNNING'"
-                  icon="el-icon-delete"
                 >
                   删除
                 </el-button>
@@ -491,46 +486,43 @@
     </el-dialog>
 
     <!-- 任务详情对话框 -->
-    <el-dialog 
-      v-model="showDetailDialog" 
+    <el-dialog
+      v-model="showDetailDialog"
       :title="`模拟任务详情 - ${selectedSimulation?.jobName || ''}`"
       width="1000px"
       :fullscreen="detailFullscreen"
       :destroy-on-close="true"
+      align-center
     >
       <div v-if="selectedSimulation" class="detail-container">
         <!-- 详情操作栏 -->
         <div class="detail-actions" style="margin-bottom: 15px;">
-          <el-button 
-            type="primary" 
+          <el-button
+            type="primary"
             @click="downloadResults(selectedSimulation.id)"
             v-if="selectedSimulation.status === 'COMPLETED'"
-            icon="el-icon-download"
           >
             下载结果文件
           </el-button>
-          
-          <el-button 
-            type="warning" 
+
+          <el-button
+            type="warning"
             @click="restartSimulation(selectedSimulation)"
             v-if="selectedSimulation.status === 'FAILED' || selectedSimulation.status === 'CANCELLED'"
-            icon="el-icon-refresh"
           >
             重新运行
           </el-button>
-          
-          <el-button 
-            type="success" 
+
+          <el-button
+            type="success"
             @click="cloneSimulation(selectedSimulation)"
-            icon="el-icon-copy-document"
           >
             复制任务
           </el-button>
-          
-          <el-button 
-            type="info" 
+
+          <el-button
+            type="info"
             @click="detailFullscreen = !detailFullscreen"
-            icon="el-icon-full-screen"
             style="float: right"
           >
             {{ detailFullscreen ? '退出全屏' : '全屏查看' }}
@@ -619,20 +611,34 @@
           <!-- 计算结果与文件 Tab -->
           <el-tab-pane label="计算结果" name="results">
             <div class="tab-scroll-area">
-              <el-card 
-                class="detail-section" 
+              <!-- 结果摘要 - 仅在任务成功完成时显示 -->
+              <el-card
+                class="detail-section"
                 shadow="never"
-                v-if="selectedSimulation.resultSummary && selectedSimulation.resultSummary !== '{}'"
+                v-if="selectedSimulation.status === 'COMPLETED' && selectedSimulation.resultSummary && selectedSimulation.resultSummary !== '{}'"
                 style="margin-bottom: 15px"
               >
                 <template #header>
                   <div class="section-header">
-                    <i class="el-icon-document" style="margin-right: 5px; color: #409EFF"></i>
                     <span style="font-weight: bold;">结果摘要</span>
                   </div>
                 </template>
-                
+
                 <pre class="result-content" style="background: #f5f7fa; padding: 10px; border-radius: 4px;">{{ formatResultSummary(selectedSimulation.resultSummary) }}</pre>
+              </el-card>
+
+              <!-- 未完成提示 -->
+              <el-card
+                class="detail-section"
+                shadow="never"
+                v-if="selectedSimulation.status !== 'COMPLETED'"
+                style="margin-bottom: 15px"
+              >
+                <el-empty description="任务尚未完成，暂无结果摘要" :image-size="80">
+                  <template #image>
+                    <span style="font-size: 48px; color: #C0C4CC;">📋</span>
+                  </template>
+                </el-empty>
               </el-card>
               
               <el-card class="detail-section" shadow="never" style="margin-bottom: 15px">
@@ -937,6 +943,11 @@ export default {
           }
         })
       } catch (error) {
+        // 如果是静默错误（如登出后取消请求），不显示提示
+        if (error.silent) {
+          this.simulations = []
+          return
+        }
         console.error('加载模拟任务失败:', error)
         ElMessage.error('加载模拟任务失败: ' + (error.response?.data?.message || error.message))
         this.simulations = []
