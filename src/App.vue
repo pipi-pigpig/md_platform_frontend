@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <!-- 登录页单独渲染 -->
-    <router-view v-if="isLoginPage" />
+    <router-view v-if="isPublicPage" />
 
     <!-- 其他页面带侧边栏布局 -->
     <el-container v-else style="height: 100vh;">
@@ -38,8 +38,17 @@
           <div style="display: flex; justify-content: space-between; align-items: center; height: 100%;">
             <h2 style="margin: 0;">电解液分子动力学模拟平台</h2>
             <div style="display: flex; align-items: center; gap: 15px;">
-              <span style="color: #606266;">{{ userName }}</span>
-              <el-button type="danger" size="small" @click="handleLogout">退出登录</el-button>
+              <el-dropdown trigger="hover" @command="handleCommand">
+                <div class="user-dropdown-trigger">
+                  <span>{{ userName }}</span>
+                </div>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="profile">个人信息</el-dropdown-item>
+                    <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </div>
         </el-header>
@@ -63,7 +72,11 @@ export default {
     const route = useRoute()
     const router = useRouter()
 
-    const isLoginPage = computed(() => route.path === '/login')
+    const isPublicPage = computed(() =>
+      route.path === '/login' ||
+      route.path === '/forgot-password' ||
+      route.path === '/reset-password'
+    )
 
     const currentPath = computed(() => route.path)
 
@@ -72,16 +85,15 @@ export default {
       if (user) {
         try {
           const userData = JSON.parse(user)
-          return userData.realName || userData.username || '用户'
+          return userData.realName || userData.username || '系统管理员'
         } catch {
-          return '用户'
+          return '系统管理员'
         }
       }
-      return '用户'
+      return '系统管理员'
     })
 
     const handleLogout = () => {
-      // 设置登出状态，取消所有pending请求
       setLoggedOut(true)
       cancelAllRequests()
 
@@ -90,11 +102,20 @@ export default {
       router.push('/login')
     }
 
+    const handleCommand = (command) => {
+      if (command === 'profile') {
+        router.push('/profile')
+      } else if (command === 'logout') {
+        handleLogout()
+      }
+    }
+
     return {
-      isLoginPage,
+      isPublicPage,
       currentPath,
       userName,
-      handleLogout
+      handleLogout,
+      handleCommand
     }
   }
 }
@@ -109,5 +130,23 @@ export default {
 
 body {
   font-family: Arial, sans-serif;
+}
+
+.user-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #e9ebed;
+  color: #606266;
+  font-size: 14px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.user-dropdown-trigger:hover {
+  background: #409eff;
+  color: #fff;
 }
 </style>

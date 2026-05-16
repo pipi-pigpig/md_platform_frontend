@@ -1,127 +1,211 @@
 <template>
   <div class="login-container">
-    <!-- 分子动力学背景 -->
-    <MolecularBackground
-      :temperature="300"
-      :max-molecules="15"
-    />
+    <MolecularBackground :temperature="300" :max-molecules="15" />
 
-    <!-- 主内容区 -->
     <div class="login-content">
-      <!-- 品牌区域 -->
       <div class="brand-section">
         <h1 class="brand-title">电池电解液配方计算平台</h1>
         <p class="brand-subtitle">Battery Electrolyte Formulation Platform</p>
       </div>
 
-      <!-- 登录卡片 -->
-      <div class="login-card">
-        <div class="card-header">
-          <span class="card-label">SIGN IN</span>
-        </div>
-
-        <el-form ref="loginFormRef" :model="loginForm" :rules="rules" label-width="0">
-          <div class="form-group">
-            <label class="form-label">用户名</label>
-            <el-form-item prop="username">
-              <el-input
-                v-model="loginForm.username"
-                placeholder="请输入用户名"
-                size="large"
-                class="login-input"
-              />
-            </el-form-item>
+      <div
+        class="card-stack"
+        :style="stackHeight ? { height: stackHeight + 'px' } : {}"
+      >
+        <!-- 登录卡片 -->
+        <div
+          ref="loginCardRef"
+          class="card"
+          :class="showRegister ? 'card-back' : 'card-front'"
+        >
+          <div class="card-header">
+            <span class="card-label">SIGN IN</span>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">密码</label>
-            <el-form-item prop="password">
-              <el-input
-                v-model="loginForm.password"
-                type="password"
-                placeholder="请输入密码"
-                size="large"
-                show-password
-                class="login-input"
-                @keyup.enter="handleLogin"
-              />
-            </el-form-item>
-          </div>
+          <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" label-width="0">
+            <div class="form-group">
+              <label class="form-label">用户名</label>
+              <el-form-item prop="username">
+                <el-input
+                  v-model="loginForm.username"
+                  placeholder="请输入用户名"
+                  size="large"
+                  class="form-input"
+                />
+              </el-form-item>
+            </div>
 
-          <el-form-item class="button-item">
-            <el-button
-              type="primary"
-              size="large"
-              class="login-button"
-              :loading="loading"
-              @click="handleLogin"
-            >
-              <span class="button-text">登录</span>
-            </el-button>
-          </el-form-item>
+            <div class="form-group">
+              <label class="form-label">密码</label>
+              <el-form-item prop="password">
+                <el-input
+                  v-model="loginForm.password"
+                  type="password"
+                  placeholder="请输入密码"
+                  size="large"
+                  show-password
+                  class="form-input"
+                  @keyup.enter="handleLogin"
+                />
+              </el-form-item>
+            </div>
+
+            <el-form-item class="button-item">
+              <el-button
+                type="primary"
+                size="large"
+                class="submit-button"
+                :loading="loginLoading"
+                @click="handleLogin"
+              >
+                <span class="button-text">登录</span>
+              </el-button>
+            </el-form-item>
+          </el-form>
 
           <div class="card-footer">
+            <el-button type="text" class="switch-btn" @click="goForgotPassword">忘记密码</el-button>
+            <span class="footer-divider">|</span>
             <span class="footer-text">还没有账号？</span>
-            <el-button type="text" class="register-btn" @click="showRegister = true">
-              立即注册
-            </el-button>
+            <el-button type="text" class="switch-btn" @click="switchToRegister">立即注册</el-button>
           </div>
-        </el-form>
+        </div>
+
+        <!-- 注册卡片 -->
+        <div
+          ref="registerCardRef"
+          class="card"
+          :class="showRegister ? 'card-front' : 'card-back'"
+        >
+          <div class="card-header">
+            <span class="card-label">SIGN UP</span>
+          </div>
+
+          <el-form ref="registerFormRef" :model="registerForm" :rules="registerRules" label-width="0">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">用户名 <span class="required">*</span></label>
+                <el-form-item prop="username">
+                  <el-input
+                    v-model="registerForm.username"
+                    placeholder="字母数字下划线"
+                    size="large"
+                    class="form-input"
+                  />
+                </el-form-item>
+              </div>
+              <div class="form-group">
+                <label class="form-label">邮箱 <span class="required">*</span></label>
+                <el-form-item prop="email">
+                  <el-input
+                    v-model="registerForm.email"
+                    placeholder="邮箱地址"
+                    size="large"
+                    class="form-input"
+                  />
+                </el-form-item>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">密码 <span class="required">*</span></label>
+                <el-form-item prop="password">
+                  <el-input
+                    v-model="registerForm.password"
+                    type="password"
+                    placeholder="含大小写数字符号"
+                    size="large"
+                    show-password
+                    class="form-input"
+                  />
+                </el-form-item>
+              </div>
+              <div class="form-group">
+                <label class="form-label">确认密码 <span class="required">*</span></label>
+                <el-form-item prop="confirmPassword">
+                  <el-input
+                    v-model="registerForm.confirmPassword"
+                    type="password"
+                    placeholder="再次输入密码"
+                    size="large"
+                    show-password
+                    class="form-input"
+                  />
+                </el-form-item>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">真实姓名</label>
+                <el-form-item prop="realName">
+                  <el-input
+                    v-model="registerForm.realName"
+                    placeholder="选填"
+                    size="large"
+                    class="form-input"
+                  />
+                </el-form-item>
+              </div>
+              <div class="form-group">
+                <label class="form-label">所属单位</label>
+                <el-form-item prop="organization">
+                  <el-input
+                    v-model="registerForm.organization"
+                    placeholder="选填"
+                    size="large"
+                    class="form-input"
+                  />
+                </el-form-item>
+              </div>
+            </div>
+
+            <el-form-item class="button-item">
+              <el-button
+                type="primary"
+                size="large"
+                class="submit-button"
+                :loading="registerLoading"
+                @click="handleRegister"
+              >
+                <span class="button-text">注册</span>
+              </el-button>
+            </el-form-item>
+          </el-form>
+
+          <div class="card-footer">
+            <span class="footer-text">已有账号？</span>
+            <el-button type="text" class="switch-btn" @click="switchToLogin">返回登录</el-button>
+          </div>
+        </div>
       </div>
 
-      <!-- 底部版权 -->
-      <p class="copyright">© 2026 Battery Electrolyte Formulation Platform</p>
+      <p class="copyright">&copy; 2026 Battery Electrolyte Formulation Platform</p>
     </div>
-
-    <!-- 注册对话框 -->
-    <el-dialog v-model="showRegister" title="用户注册" width="420px" class="register-dialog">
-      <el-form ref="registerFormRef" :model="registerForm" :rules="registerRules" label-width="80px">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="registerForm.username" placeholder="请输入用户名" />
-        </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="registerForm.password" type="password" placeholder="请输入密码" show-password />
-        </el-form-item>
-        <el-form-item label="确认密码" prop="confirmPassword">
-          <el-input v-model="registerForm.confirmPassword" type="password" placeholder="请确认密码" show-password />
-        </el-form-item>
-        <el-form-item label="真实姓名" prop="realName">
-          <el-input v-model="registerForm.realName" placeholder="请输入真实姓名" />
-        </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="registerForm.email" placeholder="请输入邮箱" />
-        </el-form-item>
-        <el-form-item label="组织" prop="organization">
-          <el-input v-model="registerForm.organization" placeholder="请输入所属组织" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showRegister = false">取消</el-button>
-        <el-button type="primary" :loading="registerLoading" @click="handleRegister">注册</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script>
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { authApi, setLoggedOut } from '../api.js'
+import { authApi } from '../api.js'
 import MolecularBackground from '../components/MolecularBackground.vue'
 
 export default {
   name: 'Login',
-  components: {
-    MolecularBackground
-  },
+  components: { MolecularBackground },
   setup() {
     const router = useRouter()
     const loginFormRef = ref(null)
     const registerFormRef = ref(null)
-    const loading = ref(false)
+    const loginCardRef = ref(null)
+    const registerCardRef = ref(null)
+    const loginLoading = ref(false)
     const registerLoading = ref(false)
     const showRegister = ref(false)
+    const stackHeight = ref(null)
 
     const loginForm = reactive({
       username: 'admin',
@@ -137,13 +221,48 @@ export default {
       organization: ''
     })
 
-    const rules = {
+    const loginRules = {
       username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
       password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
     }
 
+    const validateUsername = (rule, value, callback) => {
+      if (!value) {
+        callback(new Error('请输入用户名'))
+      } else if (value.length < 4 || value.length > 50) {
+        callback(new Error('用户名长度为4-50个字符'))
+      } else if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+        callback(new Error('用户名仅允许字母、数字和下划线'))
+      } else {
+        callback()
+      }
+    }
+
+    const validatePassword = (rule, value, callback) => {
+      if (!value) {
+        callback(new Error('请输入密码'))
+      } else if (value.length < 8 || value.length > 32) {
+        callback(new Error('密码长度为8-32个字符'))
+      } else if (!/[a-z]/.test(value)) {
+        callback(new Error('密码需包含小写字母'))
+      } else if (!/[A-Z]/.test(value)) {
+        callback(new Error('密码需包含大写字母'))
+      } else if (!/[0-9]/.test(value)) {
+        callback(new Error('密码需包含数字'))
+      } else if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value)) {
+        callback(new Error('密码需包含特殊符号'))
+      } else {
+        if (registerForm.confirmPassword) {
+          registerFormRef.value.validateField('confirmPassword')
+        }
+        callback()
+      }
+    }
+
     const validateConfirmPassword = (rule, value, callback) => {
-      if (value !== registerForm.password) {
+      if (!value) {
+        callback(new Error('请确认密码'))
+      } else if (value !== registerForm.password) {
         callback(new Error('两次输入的密码不一致'))
       } else {
         callback()
@@ -151,18 +270,44 @@ export default {
     }
 
     const registerRules = {
-      username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-      password: [
-        { required: true, message: '请输入密码', trigger: 'blur' },
-        { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
-      ],
-      confirmPassword: [
-        { required: true, message: '请确认密码', trigger: 'blur' },
-        { validator: validateConfirmPassword, trigger: 'blur' }
-      ],
+      username: [{ validator: validateUsername, trigger: 'blur' }],
+      password: [{ validator: validatePassword, trigger: 'blur' }],
+      confirmPassword: [{ validator: validateConfirmPassword, trigger: 'blur' }],
       email: [
+        { required: true, message: '请输入邮箱', trigger: 'blur' },
         { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+      ],
+      realName: [
+        { max: 50, message: '真实姓名不超过50个字符', trigger: 'blur' }
+      ],
+      organization: [
+        { max: 200, message: '所属单位不超过200个字符', trigger: 'blur' }
       ]
+    }
+
+    const updateStackHeight = () => {
+      nextTick(() => {
+        const activeCard = showRegister.value
+          ? registerCardRef.value
+          : loginCardRef.value
+        if (activeCard) {
+          stackHeight.value = activeCard.offsetHeight
+        }
+      })
+    }
+
+    const switchToRegister = () => {
+      showRegister.value = true
+      updateStackHeight()
+    }
+
+    const switchToLogin = () => {
+      showRegister.value = false
+      updateStackHeight()
+    }
+
+    const goForgotPassword = () => {
+      router.push('/forgot-password')
     }
 
     const handleLogin = async () => {
@@ -174,10 +319,7 @@ export default {
         return
       }
 
-      loading.value = true
-
-      // 发出登录请求前重置登出状态，确保请求不会被取消
-      setLoggedOut(false)
+      loginLoading.value = true
 
       try {
         const response = await authApi.login(loginForm)
@@ -193,7 +335,7 @@ export default {
       } catch (error) {
         ElMessage.error('登录失败，请检查网络连接')
       } finally {
-        loading.value = false
+        loginLoading.value = false
       }
     }
 
@@ -208,9 +350,6 @@ export default {
 
       registerLoading.value = true
 
-      // 发出注册请求前重置登出状态，确保请求不会被取消
-      setLoggedOut(false)
-
       try {
         const response = await authApi.register({
           username: registerForm.username,
@@ -221,34 +360,49 @@ export default {
         })
 
         if (response.data.success) {
-          localStorage.setItem('token', response.data.token)
-          localStorage.setItem('user', JSON.stringify(response.data.user))
-
-          ElMessage.success('注册成功')
+          ElMessage.success('注册成功，请登录')
           showRegister.value = false
-          router.push('/dashboard')
+          updateStackHeight()
         } else {
           ElMessage.error(response.data.message || '注册失败')
         }
       } catch (error) {
-        ElMessage.error('注册失败，请检查网络连接')
+        if (error.response?.data?.message) {
+          ElMessage.error(error.response.data.message)
+        } else {
+          ElMessage.error('注册失败，请检查网络连接')
+        }
       } finally {
         registerLoading.value = false
       }
     }
 
+    onMounted(() => {
+      updateStackHeight()
+    })
+
+    watch(showRegister, () => {
+      updateStackHeight()
+    })
+
     return {
+      showRegister,
+      stackHeight,
       loginFormRef,
       registerFormRef,
+      loginCardRef,
+      registerCardRef,
       loginForm,
       registerForm,
-      rules,
+      loginRules,
       registerRules,
-      loading,
+      loginLoading,
       registerLoading,
-      showRegister,
       handleLogin,
-      handleRegister
+      handleRegister,
+      switchToRegister,
+      switchToLogin,
+      goForgotPassword
     }
   }
 }
@@ -273,7 +427,6 @@ export default {
   gap: 28px;
 }
 
-/* 品牌区域 */
 .brand-section {
   text-align: center;
   animation: fadeInDown 0.6s ease-out;
@@ -297,24 +450,55 @@ export default {
   font-weight: 400;
 }
 
-/* 登录卡片 - 极简高级风格 */
-.login-card {
-  width: 380px;
-  padding: 40px 36px 32px;
+/* ========== 卡片抽叠 ========== */
+.card-stack {
+  position: relative;
+  width: 460px;
+  transition: height 0.55s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 36px 36px 28px;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: none;
   border-radius: 4px;
+  transition:
+    transform 0.55s cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 0.45s cubic-bezier(0.23, 1, 0.32, 1),
+    filter 0.45s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.55s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.card-front {
+  transform: translate(0, 0) scale(1);
+  opacity: 1;
+  filter: blur(0);
+  z-index: 2;
+  pointer-events: auto;
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.04),
     0 8px 40px rgba(0, 0, 0, 0.06);
-  animation: fadeInUp 0.6s ease-out 0.15s both;
 }
 
+.card-back {
+  transform: translate(16px, 12px) scale(0.95);
+  opacity: 0;
+  filter: blur(6px);
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+/* ========== 卡片内部 ========== */
 .card-header {
-  margin-bottom: 32px;
-  padding-bottom: 20px;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -326,61 +510,80 @@ export default {
   text-transform: uppercase;
 }
 
-/* 表单组 */
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-row .form-group {
+  flex: 1;
+  margin-bottom: 16px;
 }
 
 .form-label {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: #334155;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   letter-spacing: 0.5px;
 }
 
-/* 输入框 - 简约风格 */
-.login-input :deep(.el-input__wrapper) {
+.required {
+  color: #ef4444;
+  font-size: 12px;
+}
+
+/* ========== 输入框 ========== */
+.form-input :deep(.el-input__wrapper) {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 4px;
   box-shadow: none;
   transition: all 0.2s ease;
-  padding: 4px 12px;
+  padding: 2px 12px;
 }
 
-.login-input :deep(.el-input__wrapper:hover) {
+.form-input :deep(.el-input__wrapper:hover) {
   border-color: #cbd5e1;
   background: #fff;
 }
 
-.login-input :deep(.el-input__wrapper.is-focus) {
+.form-input :deep(.el-input__wrapper.is-focus) {
   border-color: #0f172a;
   background: #fff;
   box-shadow: none;
 }
 
-.login-input :deep(.el-input__inner) {
+.form-input :deep(.el-input__inner) {
   color: #0f172a;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 400;
 }
 
-.login-input :deep(.el-input__inner::placeholder) {
+.form-input :deep(.el-input__inner::placeholder) {
   color: #94a3b8;
   font-weight: 400;
 }
 
-/* 按钮 */
+.form-input :deep(.el-form-item__error) {
+  font-size: 11px;
+  padding-top: 2px;
+}
+
+/* ========== 按钮 ========== */
 .button-item {
-  margin-top: 28px;
+  margin-top: 20px;
   margin-bottom: 0;
 }
 
-.login-button {
+.submit-button {
   width: 100%;
-  height: 50px;
+  height: 46px;
   font-size: 15px;
   font-weight: 500;
   letter-spacing: 1px;
@@ -395,20 +598,21 @@ export default {
   text-transform: uppercase;
 }
 
-.login-button:hover {
+.submit-button:hover {
   background: #1e293b;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
 }
 
-/* 卡片底部 */
+/* ========== 卡片底部 ========== */
 .card-footer {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  margin-top: 24px;
+  margin-top: 20px;
   border-top: 1px solid #f1f5f9;
+  padding-top: 16px;
 }
 
 .footer-text {
@@ -416,18 +620,24 @@ export default {
   color: #94a3b8;
 }
 
-.register-btn {
+.switch-btn {
   font-size: 14px;
   color: #475569;
   font-weight: 500;
   padding: 0;
 }
 
-.register-btn:hover {
+.switch-btn:hover {
   color: #0f172a;
 }
 
-/* 底部版权 */
+.footer-divider {
+  font-size: 14px;
+  color: #cbd5e1;
+  margin: 0 4px;
+}
+
+/* ========== 版权 ========== */
 .copyright {
   font-size: 12px;
   color: #94a3b8;
@@ -436,27 +646,10 @@ export default {
   animation: fadeIn 0.6s ease-out 0.3s both;
 }
 
-/* 动画 */
+/* ========== 动画 ========== */
 @keyframes fadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {
@@ -464,11 +657,19 @@ export default {
   to { opacity: 1; }
 }
 
-/* 响应式设计 */
-@media (max-width: 480px) {
-  .login-card {
+/* ========== 响应式 ========== */
+@media (max-width: 520px) {
+  .card-stack {
     width: 340px;
-    padding: 32px 28px 24px;
+  }
+
+  .card {
+    padding: 28px 24px 20px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
   }
 
   .brand-title {
@@ -479,72 +680,5 @@ export default {
   .brand-subtitle {
     font-size: 11px;
   }
-}
-
-/* 注册对话框样式 */
-:deep(.el-dialog) {
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: none;
-  border-radius: 4px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.1);
-}
-
-:deep(.el-dialog__header) {
-  border-bottom: 1px solid #f1f5f9;
-  padding: 20px 24px;
-}
-
-:deep(.el-dialog__title) {
-  color: #0f172a;
-  font-weight: 500;
-  font-size: 15px;
-  letter-spacing: 0.5px;
-}
-
-:deep(.el-dialog__body) {
-  padding: 28px 24px;
-}
-
-:deep(.el-dialog__footer) {
-  border-top: 1px solid #f1f5f9;
-  padding: 16px 24px;
-}
-
-:deep(.el-form-item__label) {
-  color: #475569;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-:deep(.el-dialog .el-input__wrapper) {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  box-shadow: none;
-}
-
-:deep(.el-dialog .el-input__wrapper:hover) {
-  border-color: #cbd5e1;
-}
-
-:deep(.el-dialog .el-input__wrapper.is-focus) {
-  border-color: #0f172a;
-  box-shadow: none;
-}
-
-:deep(.el-dialog .el-input__inner) {
-  color: #0f172a;
-}
-
-:deep(.el-dialog .el-input__inner::placeholder) {
-  color: #94a3b8;
-}
-
-/* 表单验证错误样式 */
-.login-input :deep(.el-form-item__error) {
-  font-size: 11px;
-  padding-top: 4px;
 }
 </style>

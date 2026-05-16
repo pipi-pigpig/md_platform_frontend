@@ -2,9 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 // 导入视图
 import Login from '../views/Login.vue'
+import ForgotPassword from '../views/ForgotPassword.vue'
+import ResetPassword from '../views/ResetPassword.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Simulations from '../views/Simulations.vue'
 import Systems from '../views/Systems.vue'
+import Profile from '../views/Profile.vue'
 
 // 路由配置
 const routes = [
@@ -12,6 +15,18 @@ const routes = [
         path: '/login',
         name: 'Login',
         component: Login,
+        meta: { public: true }
+    },
+    {
+        path: '/forgot-password',
+        name: 'ForgotPassword',
+        component: ForgotPassword,
+        meta: { public: true }
+    },
+    {
+        path: '/reset-password',
+        name: 'ResetPassword',
+        component: ResetPassword,
         meta: { public: true }
     },
     {
@@ -34,6 +49,12 @@ const routes = [
         path: '/systems',
         name: 'Systems',
         component: Systems,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/profile',
+        name: 'Profile',
+        component: Profile,
         meta: { requiresAuth: true }
     }
 ]
