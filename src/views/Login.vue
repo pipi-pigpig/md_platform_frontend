@@ -191,7 +191,6 @@ import { ref, reactive, watch, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { authApi } from '../api.js'
-import { authApi } from '../api.js'
 import MolecularBackground from '../components/MolecularBackground.vue'
 
 export default {
