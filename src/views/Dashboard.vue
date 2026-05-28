@@ -61,8 +61,8 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" width="120">
           <template #default="scope">
-            <el-tag :type="getStatusColor(scope.row.status)">
-              {{ getStatusText(scope.row.status) }}
+            <el-tag :type="scope.row.statusType">
+              {{ scope.row.statusText }}
             </el-tag>
           </template>
         </el-table-column>
@@ -86,6 +86,8 @@
 
 <script>
 import { simulationApi } from '../api.js'
+import { Simulation } from '../models/Simulation.js'
+import { getMockCompletedSimulation, getMockSimulationStats } from '../models/mockData.js'
 
 export default {
   name: 'Dashboard',
@@ -117,7 +119,10 @@ export default {
       try {
         // 获取模拟任务
         const response = await simulationApi.getAll()
-        this.simulations = response.data || []
+        const rawData = response.data || []
+        const apiSimulations = rawData.map(item => new Simulation(item))
+        // 始终注入前端mock任务项到列表头部，方便样式开发
+        this.simulations = [getMockCompletedSimulation(), ...apiSimulations]
 
         // 获取统计信息
         try {
@@ -133,7 +138,10 @@ export default {
             }
           }
         } catch (e) {
-          console.log('统计API暂不可用')
+          // 统计API不可用时，如果使用了mock数据则用mock统计
+          if (this.simulations.length > 0 && this.simulations[0].jobName === '前端mock任务项') {
+            this.stats = getMockSimulationStats()
+          }
         }
       } catch (error) {
         // 如果是静默错误（请求被取消），不显示提示
@@ -146,28 +154,6 @@ export default {
       }
     },
 
-    getStatusColor(status) {
-      const colors = {
-        PENDING: 'warning',
-        RUNNING: 'primary',
-        COMPLETED: 'success',
-        FAILED: 'danger',
-        CANCELLED: 'info'
-      }
-      return colors[status] || 'default'
-    },
-
-    getStatusText(status) {
-      const texts = {
-        PENDING: '等待中',
-        RUNNING: '运行中',
-        COMPLETED: '已完成',
-        FAILED: '已失败',
-        CANCELLED: '已取消'
-      }
-      return texts[status] || status
-    },
-
     formatDate(dateString) {
       if (!dateString) return ''
       const date = new Date(dateString)
@@ -175,7 +161,7 @@ export default {
     },
 
     viewDetails(id) {
-      this.$router.push(`/simulations?view=${id}`)
+      this.$router.push('/simulations')
     }
   }
 }

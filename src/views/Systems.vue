@@ -199,12 +199,12 @@
         <el-table-column prop="name" label="配方名称" min-width="240" show-overflow-tooltip />
         <el-table-column label="溶剂" min-width="120">
           <template #default="scope">
-            {{ formatSolventInfo(scope.row.solventInfo) }}
+            {{ scope.row.solventInfoDisplay }}
           </template>
         </el-table-column>
         <el-table-column label="锂盐" min-width="100">
           <template #default="scope">
-            {{ formatSaltInfo(scope.row.saltInfo) }}
+            {{ scope.row.saltInfoDisplay }}
           </template>
         </el-table-column>
         <el-table-column label="温度(K)" width="85" align="center">
@@ -231,15 +231,8 @@
 </template>
 
 <script>
-import { systemApi } from '../api.js'
-
-const SALT_IONS_MAP = {
-  'LiPF6': { cation: 'Li+', anion: 'PF6-' },
-  'LiFSI': { cation: 'Li+', anion: 'FSI-' },
-  'LiTFSI': { cation: 'Li+', anion: 'TFSI-' },
-  'LiBF4': { cation: 'Li+', anion: 'BF4-' },
-  'NaCl': { cation: 'Na+', anion: 'Cl-' }
-}
+import { systemApi, formatHelper } from '../api.js'
+import { ElectrolyteFormula } from '../models/ElectrolyteFormula.js'
 
 export default {
   name: 'SystemsView',
@@ -253,7 +246,7 @@ export default {
       searchQuery: '',
       saltFilter: '',
       solventFilter: '',
-      formData: this.getEmptyFormData()
+      formData: ElectrolyteFormula.defaultFormData()
     }
   },
   computed: {
@@ -297,25 +290,9 @@ export default {
     this.loadSystems()
   },
   methods: {
-    getEmptyFormData() {
-      return {
-        name: '',
-        taskDescription: '',
-        solventInfo: {
-          solvents: [{ name: 'EC', moleFraction: 0.3 }, { name: 'DMC', moleFraction: 0.7 }]
-        },
-        saltInfo: [{ name: 'LiPF6', cation: 'Li+', anion: 'PF6-', concentration: 1.0 }],
-        additiveInfo: [],
-        temperature: 298.15,
-        pressure: 1.0,
-        boxSize: { x: 40.0, y: 40.0, z: 40.0 },
-        boundaryConditions: 'p p p'
-      }
-    },
-
     openCreateDialog() {
       this.isEditing = false
-      this.formData = this.getEmptyFormData()
+      this.formData = ElectrolyteFormula.defaultFormData()
       this.showSolventSumError = false
       this.showFormDialog = true
     },
@@ -337,7 +314,14 @@ export default {
     },
 
     updateSaltIons(salt) {
-      const ions = SALT_IONS_MAP[salt.name]
+      const ionsMap = {
+        'LiPF6': { cation: 'Li+', anion: 'PF6-' },
+        'LiFSI': { cation: 'Li+', anion: 'FSI-' },
+        'LiTFSI': { cation: 'Li+', anion: 'TFSI-' },
+        'LiBF4': { cation: 'Li+', anion: 'BF4-' },
+        'NaCl': { cation: 'Na+', anion: 'Cl-' }
+      }
+      const ions = ionsMap[salt.name]
       if (ions) {
         salt.cation = ions.cation
         salt.anion = ions.anion
@@ -356,7 +340,7 @@ export default {
       this.loading = true
       try {
         const response = await systemApi.getAll()
-        this.systems = response.data || []
+        this.systems = (response.data || []).map(item => new ElectrolyteFormula(item))
       } catch (error) {
         // 如果是静默错误（请求被取消），不显示提示
         if (error.silent) {
@@ -414,122 +398,27 @@ export default {
       this.isEditing = true
       this.showSolventSumError = false
 
-      // 解析溶剂信息
-      let solventInfo = { solvents: [] }
-      if (system.solventInfo) {
-        let rawSolvent = system.solventInfo
-        if (typeof rawSolvent === 'string') {
-          try {
-            rawSolvent = JSON.parse(rawSolvent)
-          } catch (e) {
-            rawSolvent = []
-          }
-        }
-        // 支持两种格式转换
-        if (Array.isArray(rawSolvent)) {
-          // 数据库格式: [{"name": "EC", "mole_ratio": 3}, ...]
-          const totalRatio = rawSolvent.reduce((sum, s) => sum + (s.mole_ratio || 0), 0)
-          solventInfo.solvents = rawSolvent.map(s => ({
-            name: s.name,
-            moleFraction: totalRatio > 0 ? s.mole_ratio / totalRatio : 0
-          }))
-        } else if (rawSolvent.solvents && Array.isArray(rawSolvent.solvents)) {
-          // 前端格式: {"solvents": [{"name": "EC", "moleFraction": 0.3}]}
-          solventInfo = rawSolvent
-        }
-      }
-
-      // 解析盐信息
-      let saltInfo = []
-      if (system.saltInfo) {
-        let rawSalt = system.saltInfo
-        if (typeof rawSalt === 'string') {
-          try {
-            rawSalt = JSON.parse(rawSalt)
-          } catch (e) {
-            rawSalt = []
-          }
-        }
-        if (Array.isArray(rawSalt)) {
-          // 转换数据库格式到前端格式
-          saltInfo = rawSalt.map(s => ({
-            name: s.name,
-            cation: s.cation_id ? this.getCationName(s.cation_id) : 'Li+',
-            anion: s.anion_id ? this.getAnionName(s.anion_id) : this.getAnionFromSalt(s.name),
-            concentration: s.concentration_mol_L || s.concentration || 1.0
-          }))
-        }
-      }
-
-      // 解析添加剂信息
-      let additiveInfo = []
-      if (system.additiveInfo) {
-        let rawAdditive = system.additiveInfo
-        if (typeof rawAdditive === 'string') {
-          try {
-            rawAdditive = JSON.parse(rawAdditive)
-          } catch (e) {
-            rawAdditive = []
-          }
-        }
-        if (Array.isArray(rawAdditive)) {
-          additiveInfo = rawAdditive.map(a => ({
-            name: a.name,
-            concentration: a.concentration || a.mass_fraction || 0
-          }))
-        }
-      }
-
-      // 解析盒子尺寸
-      let boxSize = { x: 40.0, y: 40.0, z: 40.0 }
-      if (system.boxSize) {
-        if (typeof system.boxSize === 'string') {
-          try {
-            boxSize = JSON.parse(system.boxSize)
-          } catch (e) {}
-        } else {
-          boxSize = system.boxSize
-        }
-      }
-
+      // 使用 ElectrolyteFormula 实例的解析后属性直接构建表单数据
       this.formData = {
         id: system.id,
         name: system.name,
         taskDescription: system.taskDescription || '',
-        solventInfo: solventInfo,
-        saltInfo: saltInfo.length > 0 ? saltInfo : [{ name: 'LiPF6', cation: 'Li+', anion: 'PF6-', concentration: 1.0 }],
-        additiveInfo: additiveInfo,
+        solventInfo: {
+          solvents: system.solvents.length > 0
+            ? system.solvents.map(s => ({ name: s.name, moleFraction: s.moleFraction }))
+            : [{ name: 'EC', moleFraction: 0.3 }, { name: 'DMC', moleFraction: 0.7 }]
+        },
+        saltInfo: system.salts.length > 0
+          ? system.salts.map(s => ({ name: s.name, cation: s.cation, anion: s.anion, concentration: s.concentration }))
+          : [{ name: 'LiPF6', cation: 'Li+', anion: 'PF6-', concentration: 1.0 }],
+        additiveInfo: system.additives.map(a => ({ name: a.name, concentration: a.concentration })),
         temperature: system.temperature || 298.15,
         pressure: system.pressure || 1.0,
-        boxSize: boxSize,
+        boxSize: system.boxSize,
         boundaryConditions: system.boundaryConditions || 'p p p'
       }
 
       this.showFormDialog = true
-    },
-
-    // 辅助方法：从盐名称推断阴离子
-    getAnionFromSalt(saltName) {
-      const anionMap = {
-        'LiPF6': 'PF6-',
-        'LiFSI': 'FSI-',
-        'LiTFSI': 'TFSI-',
-        'LiBF4': 'BF4-',
-        'NaCl': 'Cl-'
-      }
-      return anionMap[saltName] || ''
-    },
-
-    // 辅助方法：根据ID获取阳离子名称
-    getCationName(id) {
-      const cations = { 1: 'Li+', 2: 'Li+', 5: 'Na+' }
-      return cations[id] || 'Li+'
-    },
-
-    // 辅助方法：根据ID获取阴离子名称
-    getAnionName(id) {
-      const anions = { 2: 'PF6-', 6: 'Cl-', 10: 'TFSI-' }
-      return anions[id] || ''
     },
 
     async deleteSystem(system) {
@@ -548,68 +437,8 @@ export default {
       }
     },
 
-    formatSolventInfo(solventInfo) {
-      if (!solventInfo) return '-'
-      let solvents = solventInfo
-      if (typeof solventInfo === 'string') {
-        if (solventInfo.trim() === '' || solventInfo === 'null') return '-'
-        try {
-          solvents = JSON.parse(solventInfo)
-        } catch (e) {
-          return '-'
-        }
-      }
-      // 支持两种格式：
-      // 格式1: {"solvents": [{"name": "EC", "moleFraction": 0.3}]}
-      // 格式2: [{"name": "EC", "mole_ratio": 3, "molecule_count": 250}]
-      let solventList = null
-      if (Array.isArray(solvents)) {
-        // 格式2: 直接是数组
-        solventList = solvents
-      } else if (solvents && solvents.solvents && Array.isArray(solvents.solvents)) {
-        // 格式1: 包含 solvents 属性
-        solventList = solvents.solvents
-      }
-      if (!solventList || solventList.length === 0) return '-'
-
-      // 计算总比例（用于格式2）
-      const totalRatio = solventList.reduce((sum, s) => sum + (s.mole_ratio || s.moleFraction || 0), 0)
-
-      return solventList.map(s => {
-        let fraction
-        if (s.moleFraction !== undefined) {
-          fraction = (s.moleFraction * 100).toFixed(0)
-        } else if (s.mole_ratio !== undefined && totalRatio > 0) {
-          fraction = ((s.mole_ratio / totalRatio) * 100).toFixed(0)
-        } else {
-          fraction = '?'
-        }
-        return `${s.name || '?'} ${fraction}%`
-      }).join(' / ')
-    },
-
-    formatSaltInfo(saltInfo) {
-      if (!saltInfo) return '-'
-      let salts = saltInfo
-      if (typeof saltInfo === 'string') {
-        if (saltInfo.trim() === '' || saltInfo === 'null') return '-'
-        try {
-          salts = JSON.parse(saltInfo)
-        } catch (e) {
-          return '-'
-        }
-      }
-      if (!Array.isArray(salts) || salts.length === 0) return '-'
-      return salts.map(s => {
-        const conc = s.concentration || s.concentration_mol_L || '?'
-        return `${s.name || '?'} ${conc}M`
-      }).join(', ')
-    },
-
     formatDate(dateString) {
-      if (!dateString) return ''
-      const date = new Date(dateString)
-      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+      return formatHelper.formatDate(dateString)
     },
 
     handleFilterChange() {}

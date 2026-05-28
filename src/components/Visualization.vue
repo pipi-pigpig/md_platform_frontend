@@ -1,98 +1,128 @@
 <template>
   <div class="visualization-container">
-    <el-row :gutter="20">
-      <!-- 左侧：计算结果竖形表 -->
-      <el-col :span="8">
-        <el-card class="result-card" shadow="never">
+    <!-- 热力学曲线仪表盘 -->
+    <el-card class="dashboard-card" shadow="never">
+      <template #header>
+        <div class="card-header">
+          <i class="el-icon-data-line" style="color: #409EFF;"></i>
+          <span>热力学曲线</span>
+        </div>
+      </template>
+      <el-row :gutter="16">
+        <el-col :span="12"><div ref="chartTemperature" class="chart-item"></div></el-col>
+        <el-col :span="12"><div ref="chartPressure" class="chart-item"></div></el-col>
+        <el-col :span="12"><div ref="chartDensity" class="chart-item"></div></el-col>
+        <el-col :span="12"><div ref="chartEnergy" class="chart-item"></div></el-col>
+      </el-row>
+    </el-card>
+
+    <!-- 离子动力学仪表盘 -->
+    <el-card class="dashboard-card" shadow="never" style="margin-top: 16px;">
+      <template #header>
+        <div class="card-header">
+          <i class="el-icon-connection" style="color: #67C23A;"></i>
+          <span>离子动力学</span>
+        </div>
+      </template>
+      <el-row :gutter="16">
+        <el-col :span="12"><div ref="chartMsd" class="chart-item"></div></el-col>
+        <el-col :span="12"><div ref="chartRdf" class="chart-item"></div></el-col>
+      </el-row>
+    </el-card>
+
+    <!-- 性质变化曲线仪表盘 -->
+    <el-card class="dashboard-card" shadow="never" style="margin-top: 16px;">
+      <template #header>
+        <div class="card-header">
+          <i class="el-icon-data-analysis" style="color: #E6A23C;"></i>
+          <span>性质变化曲线</span>
+        </div>
+      </template>
+      <el-row :gutter="16">
+        <el-col :span="12"><div ref="chartConductivity" class="chart-item"></div></el-col>
+        <el-col :span="12"><div ref="chartViscosityTemp" class="chart-item"></div></el-col>
+      </el-row>
+    </el-card>
+
+    <!-- 电解液溶液全景 -->
+    <el-card class="dashboard-card" shadow="never" style="margin-top: 16px;">
+      <template #header>
+        <div class="card-header">
+          <i class="el-icon-view" style="color: #409EFF;"></i>
+          <span>电解液溶液全景</span>
+          <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
+            <el-radio-group v-model="displayStyle" size="small" @change="switchDisplayStyle">
+              <el-radio-button label="ballStick">球棍模型</el-radio-button>
+              <el-radio-button label="spaceFilling">空间填充</el-radio-button>
+            </el-radio-group>
+          </div>
+        </div>
+      </template>
+      <div ref="molViewer" class="mol-area"></div>
+      <div class="mol-legend">
+        <span class="legend-item"><i class="legend-dot" style="background:#b07cc9;"></i>Li⁺</span>
+        <span class="legend-item"><i class="legend-dot" style="background:#ff9933;"></i>PF₆⁻</span>
+        <span class="legend-item"><i class="legend-dot" style="background:#5470C6;"></i>EC</span>
+        <span class="legend-item"><i class="legend-dot" style="background:#3BA272;"></i>DMC</span>
+      </div>
+    </el-card>
+
+    <!-- 各成分三维分子结构 -->
+    <el-row :gutter="16" style="margin-top: 16px;">
+      <el-col :span="12">
+        <el-card class="dashboard-card molecule-card" shadow="never">
           <template #header>
             <div class="card-header">
-              <i class="el-icon-data-analysis" style="color: #409EFF;"></i>
-              <span>计算结果数值</span>
+              <i class="legend-dot" style="background:#b07cc9; width:10px; height:10px; flex-shrink:0;"></i>
+              <span>Li⁺ (锂离子)</span>
             </div>
           </template>
-          <div class="result-table">
-            <div v-for="item in calculationResults" :key="item.name" class="result-row" :class="{ 'indent-1': item.indent === 1, 'indent-2': item.indent === 2, 'header-item': item.isHeader }">
-              <div class="result-label">{{ item.label }}</div>
-              <div class="result-value" :class="getHighlightClass(item.value)">
-                {{ item.value }} <span class="result-unit">{{ item.unit }}</span>
-              </div>
-            </div>
-            <el-divider style="margin: 12px 0;"></el-divider>
-            <div class="summary-section">
-              <h4>计算统计信息</h4>
-              <div class="summary-item">
-                <span>模拟总步数:</span>
-                <span>{{ stats.totalSteps }}</span>
-              </div>
-              <div class="summary-item">
-                <span>平均每步时间:</span>
-                <span>{{ stats.avgStepTime }} ms</span>
-              </div>
-              <div class="summary-item">
-                <span>总计算时间:</span>
-                <span>{{ stats.totalTime }}</span>
-              </div>
-              <div class="summary-item">
-                <span>收敛性判断:</span>
-                <el-tag :type="stats.converged ? 'success' : 'warning'" size="small">
-                  {{ stats.converged ? '已收敛' : '未收敛' }}
-                </el-tag>
-              </div>
-            </div>
-          </div>
+          <div ref="molLi" class="mol-item"></div>
         </el-card>
       </el-col>
-
-      <!-- 右侧：图表 + 3D结构 -->
-      <el-col :span="16">
-        <el-row :gutter="20">
-          <!-- 右上方：图表 -->
-          <el-col :span="24">
-            <el-card class="chart-card" shadow="never">
-              <template #header>
-                <div class="card-header">
-                  <i class="el-icon-data-line" style="color: #409EFF;"></i>
-                  <span>二维数据分析</span>
-                  <el-select v-model="currentChart" size="small" style="margin-left: auto; width: 200px">
-                    <el-option label="1. NPT密度平衡" value="npt-density" />
-                    <el-option label="2. 均方位移 MSD" value="msd" />
-                    <el-option label="3. 电导率变化" value="conductivity" />
-                    <el-option label="4. 溶剂化结构 RDF" value="rdf" />
-                  </el-select>
-                </div>
-              </template>
-              <div ref="plotlyChart" class="chart-area"></div>
-            </el-card>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20" style="margin-top: 20px;">
-          <!-- 右下方：3D结构 -->
-          <el-col :span="24">
-            <el-card class="mol-card" shadow="never">
-              <template #header>
-                <div class="card-header">
-                  <i class="el-icon-view" style="color: #409EFF;"></i>
-                  <span>三维分子结构可视化 (LiPF₆ + EC + DMC 电解液体系)</span>
-                </div>
-              </template>
-              <div ref="molViewer" class="mol-area"></div>
-            </el-card>
-          </el-col>
-        </el-row>
+      <el-col :span="12">
+        <el-card class="dashboard-card molecule-card" shadow="never">
+          <template #header>
+            <div class="card-header">
+              <i class="legend-dot" style="background:#ff9933; width:10px; height:10px; flex-shrink:0;"></i>
+              <span>PF₆⁻ (六氟磷酸根)</span>
+            </div>
+          </template>
+          <div ref="molPF6" class="mol-item"></div>
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card class="dashboard-card molecule-card" shadow="never">
+          <template #header>
+            <div class="card-header">
+              <i class="legend-dot" style="background:#5470C6; width:10px; height:10px; flex-shrink:0;"></i>
+              <span>EC (碳酸乙烯酯)</span>
+            </div>
+          </template>
+          <div ref="molEC" class="mol-item"></div>
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card class="dashboard-card molecule-card" shadow="never">
+          <template #header>
+            <div class="card-header">
+              <i class="legend-dot" style="background:#3BA272; width:10px; height:10px; flex-shrink:0;"></i>
+              <span>DMC (碳酸二甲酯)</span>
+            </div>
+          </template>
+          <div ref="molDMC" class="mol-item"></div>
+        </el-card>
       </el-col>
     </el-row>
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick, onUnmounted } from 'vue'
-import Plotly from 'plotly.js-dist-min'
+import { ref, onMounted, nextTick, onUnmounted } from 'vue'
+import * as echarts from 'echarts'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 
 const props = defineProps({
   simulationId: {
@@ -101,750 +131,739 @@ const props = defineProps({
   }
 })
 
-const currentChart = ref('npt-density')
-const plotlyChart = ref(null)
 const molViewer = ref(null)
+const molLi = ref(null)
+const molPF6 = ref(null)
+const molEC = ref(null)
+const molDMC = ref(null)
+const displayStyle = ref('ballStick')
 
-// 计算结果数据 - 按层级组织
-const calculationResults = [
-  // 密度
-  { name: 'density', label: '密度', indent: 0, isHeader: true },
-  { name: 'density-value', label: '• 密度值', value: '1.048', unit: 'g/cm³', indent: 1 },
-  { name: 'density-temp', label: '• 温度条件', value: '298.15', unit: 'K', indent: 1 },
-  { name: 'density-press', label: '• 压强条件', value: '1.0', unit: 'bar', indent: 1 },
-  { name: 'density-sample', label: '• 采样时间', value: '10.0', unit: 'ns', indent: 1 },
-  { name: 'density-method', label: '• 计算方法', value: 'NPT 系综', unit: '', indent: 1 },
+// 各图表容器 ref
+const chartTemperature = ref(null)
+const chartPressure = ref(null)
+const chartDensity = ref(null)
+const chartEnergy = ref(null)
+const chartMsd = ref(null)
+const chartRdf = ref(null)
+const chartConductivity = ref(null)
+const chartViscosityTemp = ref(null)
 
-  // 电导率
-  { name: 'conductivity', label: '电导率', indent: 0, isHeader: true },
-  { name: 'cond-total', label: '• 总电导率', value: '85.2', unit: 'mS/cm', indent: 1 },
-  { name: 'cond-li', label: '• Li⁺ 电导率', value: '41.8', unit: 'mS/cm', indent: 1 },
-  { name: 'cond-pf6', label: '• PF₆⁻ 电导率', value: '33.2', unit: 'mS/cm', indent: 1 },
-  { name: 'cond-tensor', label: '• 电导率张量迹', value: '84.9', unit: 'mS/cm', indent: 1 },
-  { name: 'cond-method', label: '• 计算方法', value: 'Green-Kubo', unit: '', indent: 1 },
-  { name: 'cond-contrib', label: '• 离子贡献', value: '98.2', unit: '%', indent: 1 },
-  { name: 'cond-temp', label: '• 温度', value: '298.15', unit: 'K', indent: 1 },
-  { name: 'cond-sample', label: '• 采样时间', value: '5.0', unit: 'ns', indent: 1 },
-  { name: 'cond-field', label: '• 电场强度', value: '0.0', unit: 'V/Å', indent: 1 },
-
-  // 粘度
-  { name: 'viscosity', label: '粘度', indent: 0, isHeader: true },
-  { name: 'visc-value', label: '• 粘度值', value: '1.23', unit: 'cP', indent: 1 },
-  { name: 'visc-method', label: '• 计算方法', value: 'Green-Kubo', unit: '', indent: 1 },
-  { name: 'visc-acf', label: '• 应力自相关函数', value: '200.0', unit: 'ps', indent: 1 },
-  { name: 'visc-shear', label: '• 剪切速率', value: '1.2e-5', unit: 'ps⁻¹', indent: 1 },
-  { name: 'visc-stress', label: '• 应力响应', value: '0.15', unit: 'bar', indent: 1 },
-  { name: 'visc-sample', label: '• 采样时间', value: '8.0', unit: 'ns', indent: 1 },
-  { name: 'visc-temp', label: '• 温度', value: '298.15', unit: 'K', indent: 1 },
-
-  // 介电常数
-  { name: 'dielectric', label: '介电常数', indent: 0, isHeader: true },
-  { name: 'die-tensor', label: '• 介电常数张量', value: '72.5', unit: 'F/m', indent: 1 },
-  { name: 'die-static', label: '• 静态介电常数', value: '68.3', unit: '', indent: 1 },
-  { name: 'die-spectrum', label: '• 介电谱数据', value: '5.2 (ε∞)', unit: '', indent: 1 },
-  { name: 'die-method', label: '• 计算方法', value: '偶极自相关', unit: '', indent: 1 },
-  { name: 'die-dipole', label: '• 偶极矩数据', value: '2.35', unit: 'D', indent: 1 },
-  { name: 'die-sample', label: '• 采样时间', value: '2.0', unit: 'ns', indent: 1 },
-  { name: 'die-temp', label: '• 温度', value: '298.15', unit: 'K', indent: 1 },
-  { name: 'die-contrib', label: '• 组分贡献', value: '85% 溶剂', unit: '', indent: 1 },
-  { name: 'die-size', label: '• 体系尺寸', value: '40.0', unit: 'Å', indent: 1 },
-
-  // 溶剂化结构
-  { name: 'solvation', label: '溶剂化结构', indent: 0, isHeader: true },
-  { name: 'solv-center', label: '• 中心离子类型', value: 'Li⁺', unit: '', indent: 1 },
-  { name: 'solv-shell', label: '• 溶剂化壳层结构', value: '第一+第二壳层', unit: '', indent: 1 },
-  { name: 'solv-coord', label: '• 平均配位数', value: '5.8', unit: '', indent: 1 },
-  { name: 'solv-dist', label: '• 配位距离', value: '2.01', unit: 'Å', indent: 1 },
-  { name: 'solv-rdf', label: '• RDF特征峰', value: '2.0 Å', unit: '', indent: 1 },
-  { name: 'solv-hbond', label: '• 氢键网络特征', value: '4.2 平均氢键', unit: '', indent: 1 },
-  { name: 'solv-stability', label: '• 溶剂化结构稳定性', value: '85', unit: 'ps', indent: 1 },
-  { name: 'solv-energy', label: '• 离子-溶剂相互作用能', value: '-382.4', unit: 'kJ/mol', indent: 1 },
-  { name: 'solv-tempdep', label: '• 温度依赖性', value: '12.5', unit: 'kJ/mol', indent: 1 }
-]
-
-// 统计信息
-const stats = {
-  totalSteps: '10,000,000',
-  avgStepTime: '1.8',
-  totalTime: '5h 12min',
-  converged: true
+// 图表类型与 ref 的映射
+const chartRefMap = {
+  temperature: chartTemperature,
+  pressure: chartPressure,
+  density: chartDensity,
+  energy: chartEnergy,
+  msd: chartMsd,
+  rdf: chartRdf,
+  conductivity: chartConductivity,
+  'viscosity-temp': chartViscosityTemp
 }
 
-// 根据数值高亮
-const getHighlightClass = (value) => {
-  const num = parseFloat(value)
-  if (!isNaN(num) && num < 0) {
-    return 'negative'
-  }
-  return ''
+// ECharts 实例管理
+const chartInstances = {}
+
+// 配色方案
+const COLORS = {
+  temperature: '#FC8452',
+  pressure: '#9A60B4',
+  density: '#3BA272',
+  energy: ['#FAC858', '#5470C6', '#91CC75'],
+  msd: ['#5470C6', '#FAC858'],
+  rdf: ['#5470C6', '#EE6666'],
+  conductivity: ['#5470C6', '#91CC75', '#FAC858', '#EE6666', '#73C0DE', '#3BA272'],
+  viscosity: '#EE6666'
 }
 
-// 模拟数据生成
+// 通用 tooltip
+const baseTooltip = {
+  trigger: 'axis',
+  backgroundColor: 'rgba(255,255,255,0.96)',
+  borderColor: '#eee', borderWidth: 1,
+  textStyle: { color: '#333', fontSize: 12 },
+  axisPointer: { type: 'cross', crossStyle: { color: '#999' } }
+}
+
+// 通用 toolbox（仅保存图片）
+const baseToolbox = {
+  right: 10, top: 4,
+  feature: {
+    saveAsImage: { title: '保存', pixelRatio: 2 }
+  },
+  iconStyle: { borderColor: '#999' },
+  emphasis: { iconStyle: { borderColor: '#409EFF' } }
+}
+
+// 通用滚轮缩放（折线类长序列图表使用）
+const insideZoom = [{ type: 'inside' }]
+
 const generateMockData = (type) => {
-  if (type === 'npt-density') {
-    // 1. NPT平衡过程密度变化
-    const x = Array.from({ length: 100 }, (_, i) => i)
-    // 密度从波动到稳定
-    const y = x.map(step => {
-      const baseDensity = 1.18
-      const amplitude = step < 30 ? (0.05 * (1 - step / 30)) : 0.005
-      return baseDensity + (Math.random() * 2 - 1) * amplitude
-    })
+  if (type === 'temperature') {
+    const x = Array.from({ length: 200 }, (_, i) => (i * 0.5).toFixed(1))
+    const y = x.map(step => { const t = parseFloat(step); return 298.15 + (Math.random() * 2 - 1) * (t < 15 ? 8 * Math.exp(-t / 5) : 0.8) })
+    return { x, y, title: '温度变化', ytitle: '温度 (K)', xtitle: '时间 (ps)', type: 'temperature' }
+  } else if (type === 'pressure') {
+    const x = Array.from({ length: 200 }, (_, i) => (i * 0.5).toFixed(1))
+    const y = x.map(step => { const t = parseFloat(step); return 0.1 + (Math.random() * 2 - 1) * (t < 20 ? 200 * Math.exp(-t / 8) : 15) })
+    return { x, y, title: '压力变化', ytitle: '压力 (bar)', xtitle: '时间 (ps)', type: 'pressure' }
+  } else if (type === 'density') {
+    const x = Array.from({ length: 200 }, (_, i) => (i * 0.5).toFixed(1))
+    const y = x.map(step => { const t = parseFloat(step); return 1.18 + (Math.random() * 2 - 1) * (t < 30 ? 0.05 * Math.exp(-t / 12) : 0.003) })
+    return { x, y, title: '密度收敛', ytitle: '密度 (g/cm³)', xtitle: '时间 (ps)', type: 'density' }
+  } else if (type === 'energy') {
+    const x = Array.from({ length: 150 }, (_, i) => (i * 0.5).toFixed(1))
+    const kinetic = x.map(t => { const s = parseFloat(t); return -85000 + (Math.random() * 2 - 1) * (s < 10 ? 500 : 100) })
+    const potential = x.map(t => { const s = parseFloat(t); return -220000 + (Math.random() * 2 - 1) * (s < 10 ? 800 : 150) + (s < 20 ? -s * 50 : -1000) })
+    const total = kinetic.map((k, i) => k + potential[i])
     return {
-      x, y,
-      title: 'NPT平衡过程密度稳定性',
-      ytitle: '密度 (g/cm³)',
-      xtitle: '模拟步数 (ps)',
-      type: 'scatter'
+      x, series: [
+        { name: '动能', data: kinetic, color: COLORS.energy[0] },
+        { name: '势能', data: potential, color: COLORS.energy[1] },
+        { name: '总能量', data: total, color: COLORS.energy[2] }
+      ],
+      title: '系统能量变化', ytitle: '能量 (kJ/mol)', xtitle: '时间 (ps)', type: 'energy'
     }
   } else if (type === 'msd') {
-    // 2. 双对数均方位移 MSD
-    const x = Array.from({ length: 50 }, (_, i) => Math.log10(i + 1) + 0.1)
-    // Li+ MSD
-    const yLi = x.map(t => Math.log10(2 * 1.21e-9 * Math.pow(10, t) * 1e12))
-    // PF6- MSD
-    const yPF6 = x.map(t => Math.log10(2 * 0.85e-9 * Math.pow(10, t) * 1e12))
+    const x = Array.from({ length: 50 }, (_, i) => (Math.log10(i + 1) + 0.1).toFixed(2))
+    const yLi = x.map(t => Math.log10(2 * 1.21e-9 * Math.pow(10, parseFloat(t)) * 1e12))
+    const yPF6 = x.map(t => Math.log10(2 * 0.85e-9 * Math.pow(10, parseFloat(t)) * 1e12))
     return {
-      x,
-      traces: [
-        { x, y: yLi, name: 'Li⁺', color: '#409EFF' },
-        { x, y: yPF6, name: 'PF₆⁻', color: '#E6A23C' }
+      x, series: [
+        { name: 'Li⁺', data: yLi.map(v => +v.toFixed(3)), color: COLORS.msd[0] },
+        { name: 'PF₆⁻', data: yPF6.map(v => +v.toFixed(3)), color: COLORS.msd[1] }
       ],
-      title: '均方位移 (双对数坐标)',
-      ytitle: 'log(MSD) (Å²)',
-      xtitle: 'log(time) (ps)',
-      type: 'msd',
-      fitStart: 10, fitEnd: 40
-    }
-  } else if (type === 'conductivity') {
-    // 3. 不同浓度下电导率变化
-    const concentrations = [0.1, 0.5, 1.0, 1.5, 2.0, 3.0]
-    const conductivities = [12.5, 48.2, 85.2, 112.8, 128.5, 118.3]
-    return {
-      x: concentrations,
-      y: conductivities,
-      title: '不同浓度下电解液电导率',
-      ytitle: '电导率 σ (mS/cm)',
-      xtitle: '盐浓度 (mol/L)',
-      type: 'bar'
+      title: '均方位移 (双对数坐标)', ytitle: 'log(MSD) (Å²)', xtitle: 'log(time) (ps)',
+      type: 'msd', fitStart: 10, fitEnd: 40
     }
   } else if (type === 'rdf') {
-    // 4. Li+周围溶剂化结构径向分布
-    const rdfX = Array.from({ length: 100 }, (_, i) => 1 + i * 0.05)
-    // Li-O (溶剂) 和 Li-PF6 分布
+    const rdfX = Array.from({ length: 100 }, (_, i) => (1 + i * 0.05).toFixed(2))
     const rdfLiO = rdfX.map(r => {
+      r = parseFloat(r)
       if (r < 1.8) return 0
-      if (r >= 1.8 && r < 2.4) return Math.exp(-Math.pow((r - 2.0) / 0.15, 2)) * 4.8
-      if (r >= 3.0 && r < 4.5) return Math.exp(-Math.pow((r - 3.8) / 0.6, 2)) * 1.8
-      return r > 6 ? 1.0 : Math.exp(-(r - 5) / 2) * 1.2
+      if (r >= 1.8 && r < 2.4) return +(Math.exp(-Math.pow((r - 2.0) / 0.15, 2)) * 4.8).toFixed(3)
+      if (r >= 3.0 && r < 4.5) return +(Math.exp(-Math.pow((r - 3.8) / 0.6, 2)) * 1.8).toFixed(3)
+      return r > 6 ? 1.0 : +(Math.exp(-(r - 5) / 2) * 1.2).toFixed(3)
     })
     const rdfLiP = rdfX.map(r => {
+      r = parseFloat(r)
       if (r < 3.5) return 0
-      if (r >= 3.5 && r < 5.0) return Math.exp(-Math.pow((r - 4.2) / 0.5, 2)) * 2.1
-      return r > 6 ? 0.8 : Math.exp(-(r - 5) / 3) * 1.0
+      if (r >= 3.5 && r < 5.0) return +(Math.exp(-Math.pow((r - 4.2) / 0.5, 2)) * 2.1).toFixed(3)
+      return r > 6 ? 0.8 : +(Math.exp(-(r - 5) / 3) * 1.0).toFixed(3)
     })
     return {
-      x: rdfX,
-      traces: [
-        { x: rdfX, y: rdfLiO, name: 'Li⁺ - O (溶剂)', color: '#409EFF' },
-        { x: rdfX, y: rdfLiP, name: 'Li⁺ - P (PF₆⁻)', color: '#F56C6C' }
+      x: rdfX, series: [
+        { name: 'Li⁺ - O (溶剂)', data: rdfLiO, color: COLORS.rdf[0] },
+        { name: 'Li⁺ - P (PF₆⁻)', data: rdfLiP, color: COLORS.rdf[1] }
       ],
-      title: 'Li⁺周围溶剂化径向分布函数',
-      ytitle: 'g(r)',
-      xtitle: '距离 r (Å)',
-      type: 'rdf'
+      title: 'Li⁺溶剂化径向分布函数', ytitle: 'g(r)', xtitle: '距离 r (Å)', type: 'rdf'
     }
+  } else if (type === 'conductivity') {
+    const concentrations = ['0.1', '0.5', '1.0', '1.5', '2.0', '3.0']
+    const conductivities = [12.5, 48.2, 85.2, 112.8, 128.5, 118.3]
+    return { x: concentrations, y: conductivities, title: '电导率-浓度曲线', ytitle: '电导率 σ (mS/cm)', xtitle: '盐浓度 (mol/L)', type: 'conductivity' }
+  } else if (type === 'viscosity-temp') {
+    const temps = [253, 263, 273, 283, 293, 298, 303, 313, 323, 333, 343]
+    const viscosity = temps.map(T => +(2.89 * Math.exp(1400 / T - 1400 / 298)).toFixed(2))
+    return { x: temps.map(String), y: viscosity, title: '粘度-温度曲线', ytitle: '粘度 η (mPa·s)', xtitle: '温度 (K)', type: 'viscosity' }
   }
 }
 
-const renderPlotly = () => {
-  if (!plotlyChart.value) return
+const buildEchartsOption = (type, data) => {
+  const title = { text: data.title, left: 'center', top: 4, textStyle: { fontSize: 14, fontWeight: 600, color: '#303133' } }
+  const xAxisBase = { type: 'category', boundaryGap: false, axisLine: { lineStyle: { color: '#ccc' } }, axisTick: { show: false }, axisLabel: { color: '#666', fontSize: 11 }, splitLine: { show: false }, name: data.xtitle, nameTextStyle: { fontSize: 11, color: '#909399', padding: [8, 0, 0, 0] } }
+  const yAxisBase = { type: 'value', axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#666', fontSize: 11 }, splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } }, name: data.ytitle, nameTextStyle: { fontSize: 11, color: '#909399', padding: [0, 0, 4, 0] } }
+  const grid = { left: 60, right: 24, top: 48, bottom: 40 }
 
-  const data = generateMockData(currentChart.value)
-  let traces = []
+  // ——— 1. 温度：暖色折线 + 渐变填充 + 目标温度参考线 ———
+  if (data.type === 'temperature') {
+    return {
+      title, tooltip: baseTooltip, toolbox: baseToolbox, dataZoom: insideZoom,
+      grid: { left: 60, right: 24, top: 52, bottom: 40 },
+      xAxis: { ...xAxisBase, data: data.x },
+      yAxis: yAxisBase,
+      series: [{
+        type: 'line', data: data.y, smooth: 0.4, symbol: 'none',
+        lineStyle: { width: 2.5, color: COLORS.temperature },
+        areaStyle: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(252,132,82,0.40)' },
+            { offset: 1, color: 'rgba(252,132,82,0.02)' }
+          ]
+        },
+        markLine: {
+          silent: true, symbol: 'none',
+          lineStyle: { color: '#FC8452', type: 'dashed', width: 1.5 },
+          data: [{ yAxis: 298.15, label: { formatter: '目标 298.15 K', position: 'insideEndTop', fontSize: 10, color: '#FC8452' } }]
+        }
+      }]
+    }
+  }
 
-  if (data.type === 'scatter') {
-    traces = [{
-      x: data.x,
-      y: data.y,
-      type: 'scatter',
-      mode: 'lines',
-      line: { color: '#409EFF', width: 2 }
-    }]
-  } else if (data.type === 'bar') {
-    traces = [{
-      x: data.x,
-      y: data.y,
-      type: 'bar',
-      marker: {
-        color: data.x.map((c, i) => ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399', '#409EFF'][i % 6]),
-        line: { width: 1, color: '#fff' }
-      }
-    }]
-  } else if (data.type === 'msd' || data.type === 'rdf') {
-    traces = data.traces.map(t => ({
-      x: t.x,
-      y: t.y,
-      type: 'scatter',
-      mode: 'lines',
-      name: t.name,
-      line: { color: t.color, width: 2 }
+  // ——— 2. 压力：紫色散点折线 + 零线参考 + 阴影波动带 ———
+  if (data.type === 'pressure') {
+    // 取采样点做散点
+    const sampledIdx = data.x.filter((_, i) => i % 4 === 0)
+    const sampledY = data.y.filter((_, i) => i % 4 === 0)
+    return {
+      title, tooltip: baseTooltip, toolbox: baseToolbox, dataZoom: insideZoom,
+      grid,
+      xAxis: { ...xAxisBase, data: data.x },
+      yAxis: yAxisBase,
+      series: [
+        {
+          type: 'line', data: data.y, smooth: 0.3, symbol: 'none',
+          lineStyle: { width: 1.5, color: 'rgba(154,96,180,0.5)' },
+          areaStyle: {
+            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(154,96,180,0.15)' },
+              { offset: 1, color: 'rgba(154,96,180,0.01)' }
+            ]
+          }
+        },
+        {
+          type: 'scatter', data: sampledIdx.map((xVal, i) => [xVal, sampledY[i]]),
+          symbolSize: 4, itemStyle: { color: COLORS.pressure, borderColor: '#fff', borderWidth: 1 },
+          z: 10
+        },
+        {
+          type: 'line', data: data.y.map(() => 0), symbol: 'none',
+          lineStyle: { width: 1, color: '#9A60B4', type: 'dashed', opacity: 0.4 },
+          markLine: {
+            silent: true, symbol: 'none',
+            lineStyle: { color: '#9A60B4', type: 'dotted', width: 1 },
+            data: [{ yAxis: 0, label: { formatter: '0 bar', fontSize: 10, color: '#9A60B4', position: 'insideEndTop' } }]
+          }
+        }
+      ]
+    }
+  }
+
+  // ——— 3. 密度：青绿色阶跃线 + 平衡标注 + 收敛区间高亮 ———
+  if (data.type === 'density') {
+    return {
+      title, tooltip: baseTooltip, toolbox: baseToolbox, dataZoom: insideZoom,
+      grid: { left: 60, right: 24, top: 52, bottom: 40 },
+      xAxis: { ...xAxisBase, data: data.x },
+      yAxis: { ...yAxisBase, min: 1.10, max: 1.30 },
+      series: [{
+        type: 'line', data: data.y, step: 'middle', symbol: 'none',
+        lineStyle: { width: 2, color: COLORS.density },
+        areaStyle: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(59,162,114,0.30)' },
+            { offset: 1, color: 'rgba(59,162,114,0.02)' }
+          ]
+        },
+        markLine: {
+          silent: true, symbol: 'none',
+          lineStyle: { color: COLORS.density, type: 'dashed', width: 1.5 },
+          data: [{ yAxis: 1.18, label: { formatter: '平衡值 1.18 g/cm³', fontSize: 10, color: COLORS.density, position: 'insideEndTop' } }]
+        },
+        markArea: {
+          silent: true,
+          itemStyle: { color: 'rgba(59,162,114,0.08)', borderWidth: 1, borderColor: 'rgba(59,162,114,0.25)', borderType: 'dashed' },
+          label: { show: true, position: 'insideTop', formatter: '收敛区', fontSize: 10, color: COLORS.density },
+          data: [[{ xAxis: data.x[60] }, { xAxis: data.x[data.x.length - 1] }]]
+        }
+      }]
+    }
+  }
+
+  // ——— 4. 能量：三线叠加 + 透明填充 ———
+  if (data.type === 'energy') {
+    return {
+      title, tooltip: baseTooltip, toolbox: baseToolbox, dataZoom: insideZoom,
+      legend: { top: 28, textStyle: { fontSize: 11 } },
+      grid: { left: 60, right: 24, top: 68, bottom: 40 },
+      xAxis: { ...xAxisBase, data: data.x },
+      yAxis: yAxisBase,
+      series: data.series.map((s, i) => ({
+        type: 'line', name: s.name, data: s.data, smooth: 0.3, symbol: 'none',
+        lineStyle: { width: 2.5, color: s.color },
+        areaStyle: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: s.color + '50' },
+            { offset: 1, color: s.color + '05' }
+          ]
+        }
+      }))
+    }
+  }
+
+  // ——— 5. MSD：虚线 + 圆点标记 + 拟合区 ———
+  if (data.type === 'msd') {
+    const series = data.series.map((s) => ({
+      type: 'line', name: s.name, data: s.data, smooth: false,
+      symbol: 'circle', symbolSize: 5,
+      lineStyle: { width: 2, color: s.color, type: 'dashed' },
+      itemStyle: { color: s.color, borderColor: '#fff', borderWidth: 1.5 }
     }))
-    // 添加线性拟合区域标注 for MSD
-    if (data.type === 'msd') {
-      const yMin = Math.min(...data.traces[0].y)
-      const yMax = Math.max(...data.traces[0].y)
-      traces.push({
-        type: 'rect',
-        x0: data.x[data.fitStart],
-        x1: data.x[data.fitEnd],
-        y0: yMin - 0.2,
-        y1: yMax + 0.2,
-        line: { width: 0 },
-        fillcolor: 'rgba(64, 158, 255, 0.2)',
-        name: '线性拟合区'
-      })
+    series[0].markArea = {
+      silent: true,
+      itemStyle: { color: 'rgba(84,112,198,0.08)', borderWidth: 1, borderColor: 'rgba(84,112,198,0.3)', borderType: 'dashed' },
+      label: { show: true, position: 'insideTop', formatter: '线性拟合区', fontSize: 10, color: '#5470C6' },
+      data: [[{ xAxis: data.x[data.fitStart] }, { xAxis: data.x[data.fitEnd] }]]
+    }
+    return {
+      title, tooltip: baseTooltip, toolbox: baseToolbox, dataZoom: insideZoom,
+      legend: { top: 28, textStyle: { fontSize: 11 } },
+      grid: { left: 60, right: 24, top: 68, bottom: 40 },
+      xAxis: { ...xAxisBase, data: data.x },
+      yAxis: yAxisBase,
+      series
     }
   }
 
-  const layout = {
-    title: { text: data.title, font: { size: 14 } },
-    xaxis: { title: data.xtitle, gridcolor: '#EBEEF5' },
-    yaxis: { title: data.ytitle, gridcolor: '#EBEEF5' },
-    margin: { l: 60, r: 20, t: 40, b: 50 },
-    paper_bgcolor: 'transparent',
-    plot_bgcolor: 'transparent',
-    height: 280,
-    showlegend: (data.type === 'msd' || data.type === 'rdf'),
-    legend: { x: 1, y: 1, xanchor: 'right' }
+  // ——— 6. RDF：粗实线 + 峰值标注 + 无填充 ———
+  if (data.type === 'rdf') {
+    return {
+      title, tooltip: baseTooltip, toolbox: baseToolbox, dataZoom: insideZoom,
+      legend: { top: 28, textStyle: { fontSize: 11 } },
+      grid: { left: 60, right: 24, top: 68, bottom: 40 },
+      xAxis: { ...xAxisBase, data: data.x },
+      yAxis: yAxisBase,
+      series: data.series.map((s, i) => ({
+        type: 'line', name: s.name, data: s.data, smooth: 0.2,
+        symbol: 'none',
+        lineStyle: { width: 3, color: s.color },
+        markPoint: i === 0 ? {
+          data: [
+            { type: 'max', name: '第一配位层', symbolSize: 40, label: { fontSize: 9 } },
+          ],
+          symbol: 'pin', itemStyle: { color: s.color }
+        } : undefined
+      }))
+    }
   }
 
-  Plotly.newPlot(plotlyChart.value, traces, layout, { responsive: true })
+  // ——— 7. 电导率：圆角渐变柱 + 数值标签 ———
+  if (data.type === 'conductivity') {
+    return {
+      title, tooltip: baseTooltip, toolbox: baseToolbox,
+      grid,
+      xAxis: { ...xAxisBase, data: data.x, boundaryGap: true },
+      yAxis: yAxisBase,
+      series: [{
+        type: 'bar', data: data.y, barWidth: '40%', barMaxWidth: 48,
+        itemStyle: {
+          borderRadius: [6, 6, 0, 0],
+          color: (params) => new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: COLORS.conductivity[params.dataIndex % COLORS.conductivity.length] },
+            { offset: 1, color: COLORS.conductivity[params.dataIndex % COLORS.conductivity.length] + '66' }
+          ])
+        },
+        label: { show: true, position: 'top', fontSize: 10, color: '#666', formatter: '{c}' }
+      }]
+    }
+  }
+
+  // ——— 8. 粘度：红色平滑曲线 + 菱形标记点 ———
+  if (data.type === 'viscosity') {
+    return {
+      title, tooltip: baseTooltip, toolbox: baseToolbox, dataZoom: insideZoom,
+      grid,
+      xAxis: { ...xAxisBase, data: data.x },
+      yAxis: yAxisBase,
+      series: [{
+        type: 'line', data: data.y, smooth: true,
+        symbol: 'diamond', symbolSize: 8,
+        lineStyle: { width: 2.5, color: COLORS.viscosity },
+        itemStyle: { color: COLORS.viscosity, borderColor: '#fff', borderWidth: 2 },
+        areaStyle: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(238,102,102,0.22)' },
+            { offset: 1, color: 'rgba(238,102,102,0.01)' }
+          ]
+        }
+      }]
+    }
+  }
+
+  return {}
 }
 
-// Three.js 相关变量 - 完整移植自 3Dmol.html (精细溶剂化结构)
-let scene = null
-let camera = null
-let renderer = null
-let labelRenderer = null
-let controls = null
-let composer = null
-let stars = null
-let ring = null
-let particles = null
-let animationId = null
-let resizeHandler = null
-let clickHandler = null
+const renderChart = (type, containerRef) => {
+  const container = containerRef?.value
+  if (!container) return
 
-// 初始化Three.js场景 - 完整的Li+溶剂化壳层 (2 EC + 2 DMC + PF6-)，带泛光特效
-const initThreeJS = () => {
-  if (!molViewer.value) return
+  // 销毁已有实例
+  if (chartInstances[type]) {
+    chartInstances[type].dispose()
+    delete chartInstances[type]
+  }
 
-  // 获取容器尺寸
-  const container = molViewer.value
-  const width = container.clientWidth
-  const height = container.clientHeight
+  const data = generateMockData(type)
+  if (!data) return
 
-  // --- 初始化场景、相机、渲染器 ---
-  scene = new THREE.Scene()
-  scene.background = new THREE.Color('#020510') // 深色背景突出分子
-  scene.fog = new THREE.FogExp2('#020510', 0.008)
+  const chart = echarts.init(container)
+  chartInstances[type] = chart
+  chart.setOption(buildEchartsOption(type, data))
+}
 
-  camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000)
-  camera.position.set(10, 6, 16)
-  camera.lookAt(0, 1.5, 0)
+const renderAllCharts = () => {
+  Object.entries(chartRefMap).forEach(([type, refObj]) => {
+    renderChart(type, refObj)
+  })
+}
+
+// 窗口 resize 时自适应
+const handleResize = () => {
+  Object.values(chartInstances).forEach(chart => {
+    if (chart && !chart.isDisposed()) chart.resize()
+  })
+}
+
+// Three.js 相关变量
+// Three.js 场景实例管理：全景 + 4 个成分
+const scenes = []
+
+// 公共工具：创建原子球
+function createAtom(color, radius, pos) {
+  const sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 48, 24),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.25, metalness: 0.2 })
+  )
+  sphere.position.set(pos[0], pos[1], pos[2])
+  sphere.castShadow = true
+  sphere.receiveShadow = true
+  return sphere
+}
+
+// 公共工具：创建化学键
+function createBond(from, to, color = 0xbbbbbb, radius = 0.06) {
+  const f = new THREE.Vector3(...from), t = new THREE.Vector3(...to)
+  const dir = new THREE.Vector3().subVectors(t, f)
+  const len = dir.length()
+  const cyl = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, len, 8),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.1 })
+  )
+  cyl.position.copy(new THREE.Vector3().addVectors(f, t).multiplyScalar(0.5))
+  cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize())
+  cyl.castShadow = true
+  return cyl
+}
+
+// 通用：初始化一个 Three.js 小场景
+function initMolScene(containerRef, buildMolecules, cameraPos = [6, 4, 6]) {
+  const container = containerRef?.value
+  if (!container) {
+    console.warn('initMolScene: container ref is null')
+    return null
+  }
+
+  const width = container.clientWidth || 300
+  const height = container.clientHeight || 300
+
+  const scene = new THREE.Scene()
+  scene.background = new THREE.Color('#eef1f5')
+
+  const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000)
+  camera.position.set(...cameraPos)
+  camera.lookAt(0, 0, 0)
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
   renderer.setSize(width, height)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap
-  renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 0.7 // 调暗曝光
-  renderer.outputEncoding = THREE.sRGBEncoding
+  renderer.outputColorSpace = THREE.SRGBColorSpace
+
+  // WebGL context check
+  const gl = renderer.getContext()
+  if (!gl) {
+    renderer.dispose()
+    return null
+  }
+
   container.appendChild(renderer.domElement)
 
-  // CSS2渲染器用于文字标签 (始终面向屏幕)
-  labelRenderer = new CSS2DRenderer()
-  labelRenderer.setSize(width, height)
-  labelRenderer.domElement.style.position = 'absolute'
-  labelRenderer.domElement.style.top = '0px'
-  labelRenderer.domElement.style.left = '0px'
-  labelRenderer.domElement.style.pointerEvents = 'none'
-  container.appendChild(labelRenderer.domElement)
+  // 灯光
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7))
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.0)
+  dirLight.position.set(5, 10, 7)
+  dirLight.castShadow = true
+  scene.add(dirLight)
+  const fill = new THREE.PointLight(0xddeeff, 0.3)
+  fill.position.set(-4, 3, 6)
+  scene.add(fill)
 
-  // --- 后期特效: 泛光 (Bloom) ---
-  const renderScene = new RenderPass(scene, camera)
-  const bloomPass = new UnrealBloomPass(new THREE.Vector2(width, height), 1.5, 0.4, 0.85)
-  bloomPass.threshold = 0.2
-  bloomPass.strength = 0.3 // 调暗泛光强度
-  bloomPass.radius = 0.8
-  composer = new EffectComposer(renderer)
-  composer.addPass(renderScene)
-  composer.addPass(bloomPass)
-
-  // --- 轨道控制器 (带自动旋转) ---
-  controls = new OrbitControls(camera, renderer.domElement)
+  // 轨道控制器
+  const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
   controls.dampingFactor = 0.05
   controls.autoRotate = true
-  controls.autoRotateSpeed = 1.2
-  controls.enableZoom = true
-  controls.enablePan = true
-  controls.target.set(0, 1.8, 0)
-  controls.maxPolarAngle = Math.PI / 1.9
-  controls.minDistance = 6
-  controls.maxDistance = 24
+  controls.autoRotateSpeed = 1.5
+  controls.target.set(0, 0, 0)
+  controls.minDistance = 3
+  controls.maxDistance = 20
 
-  // --- 灯光系统 (调暗) ---
-  // 1. 环境光
-  scene.add(new THREE.AmbientLight(0x404c66, 0.3))
-  // 2. 主平行光 (产生阴影)
-  const dirLight = new THREE.DirectionalLight(0xfff0e0, 0.9)
-  dirLight.position.set(6, 14, 8)
-  dirLight.castShadow = true
-  dirLight.receiveShadow = true
-  dirLight.shadow.mapSize.width = 2048
-  dirLight.shadow.mapSize.height = 2048
-  const d = 14
-  dirLight.shadow.camera.left = -d
-  dirLight.shadow.camera.right = d
-  dirLight.shadow.camera.top = d
-  dirLight.shadow.camera.bottom = -d
-  dirLight.shadow.camera.near = 2
-  dirLight.shadow.camera.far = 35
-  dirLight.shadow.bias = -0.0004
-  scene.add(dirLight)
-
-  // 3. 辅助彩色光源 (调暗)
-  const backLight1 = new THREE.PointLight(0x4466cc, 0.6)
-  backLight1.position.set(-5, 4, -8)
-  scene.add(backLight1)
-  const backLight2 = new THREE.PointLight(0x66aaff, 0.5)
-  backLight2.position.set(7, 3, -9)
-  scene.add(backLight2)
-  const fillLight1 = new THREE.PointLight(0xffaa66, 0.4)
-  fillLight1.position.set(-4, 5, 10)
-  scene.add(fillLight1)
-  const fillLight2 = new THREE.PointLight(0x99ccff, 0.35)
-  fillLight2.position.set(9, 4, 6)
-  scene.add(fillLight2)
-  const bottomLight = new THREE.PointLight(0x5577aa, 0.3)
-  bottomLight.position.set(0, -1, 5)
-  scene.add(bottomLight)
-
-  // 添加可见光晕小球体 (装饰)
-  function addLightSphere(color, pos, intensity = 0.2) {
-    const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), new THREE.MeshBasicMaterial({ color }))
-    sphere.position.set(pos[0], pos[1], pos[2])
-    scene.add(sphere)
+  // 构建分子
+  const molGroup = new THREE.Group()
+  const bondGroup = new THREE.Group()
+  const radii = []
+  try {
+    buildMolecules(molGroup, bondGroup, radii)
+  } catch (e) {
+    console.error('buildMolecules error:', e.message)
   }
-  addLightSphere(0x88aaff, [-5, 4, -8])
-  addLightSphere(0xaaccff, [7, 3, -9])
+  molGroup.add(bondGroup)
+  scene.add(molGroup)
 
-  // --- 背景: 动态星空粒子 + 科技网格环 ---
-  const starsGeo = new THREE.BufferGeometry()
-  const starsCount = 3000
-  const starPos = new Float32Array(starsCount * 3)
-  for (let i = 0; i < starsCount * 3; i += 3) {
-    const r = 45 + Math.random() * 50
-    const theta = Math.random() * Math.PI * 2
-    const phi = Math.acos((Math.random() * 2) - 1)
-    starPos[i] = Math.sin(phi) * Math.cos(theta) * r
-    starPos[i + 1] = Math.sin(phi) * Math.sin(theta) * r
-    starPos[i + 2] = Math.cos(phi) * r
-  }
-  starsGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3))
-  const starsMat = new THREE.PointsMaterial({ color: 0xb0caff, size: 0.12, transparent: true, blending: THREE.AdditiveBlending })
-  stars = new THREE.Points(starsGeo, starsMat)
-  scene.add(stars)
-
-  // 动态旋转光环
-  const ringGeometry = new THREE.TorusGeometry(5.2, 0.03, 32, 200)
-  const ringMaterial = new THREE.MeshStandardMaterial({ color: 0x3a7bd5, emissive: new THREE.Color(0x1a4c9c), emissiveIntensity: 0.8, transparent: true, opacity: 0.35 })
-  ring = new THREE.Mesh(ringGeometry, ringMaterial)
-  ring.rotation.x = Math.PI / 2
-  ring.position.y = 0.5
-  ring.receiveShadow = false
-  scene.add(ring)
-
-  const ring2 = new THREE.Mesh(new THREE.TorusGeometry(4.0, 0.02, 16, 120), new THREE.MeshStandardMaterial({ color: 0x7aaaff, emissive: new THREE.Color(0x2266cc), emissiveIntensity: 0.5, transparent: true, opacity: 0.25 }))
-  ring2.rotation.x = Math.PI / 2
-  ring2.rotation.z = 0.3
-  ring2.position.y = 0.6
-  scene.add(ring2)
-
-  // 地面展示台 (半透明玻璃)
-  const basePlate = new THREE.Mesh(
-    new THREE.CylinderGeometry(6.5, 6.5, 0.3, 64),
-    new THREE.MeshStandardMaterial({ color: 0x0e1a2b, roughness: 0.25, metalness: 0.5, transparent: true, opacity: 0.7, emissive: new THREE.Color(0x112233), emissiveIntensity: 0.4 })
-  )
-  basePlate.position.y = -0.2
-  basePlate.receiveShadow = true
-  basePlate.castShadow = false
-  scene.add(basePlate)
-
-  const glowDisc = new THREE.Mesh(
-    new THREE.CylinderGeometry(5.0, 5.0, 0.05, 64),
-    new THREE.MeshStandardMaterial({ color: 0x2a4a7a, emissive: new THREE.Color(0x1a3a6a), emissiveIntensity: 0.7, transparent: true, opacity: 0.5 })
-  )
-  glowDisc.position.y = 0.05
-  glowDisc.receiveShadow = false
-  scene.add(glowDisc)
-
-  // --- 工具函数: 创建原子 (高光金属感) ---
-  function createAtom(color, radius, pos, metalness = 0.2, roughness = 0.25, emissive = false) {
-    const geometry = new THREE.SphereGeometry(radius, 64, 32)
-    const material = new THREE.MeshStandardMaterial({
-      color: color,
-      roughness: roughness,
-      metalness: metalness,
-      emissive: emissive ? color : 0x000000,
-      emissiveIntensity: 0.15,
-      envMapIntensity: 1.5
-    })
-    const sphere = new THREE.Mesh(geometry, material)
-    sphere.position.set(pos[0], pos[1], pos[2])
-    sphere.castShadow = true
-    sphere.receiveShadow = true
-    return sphere
-  }
-
-  function createBond(posFrom, posTo, color = 0xcccccc, radius = 0.07) {
-    const from = new THREE.Vector3(...posFrom)
-    const to = new THREE.Vector3(...posTo)
-    const direction = new THREE.Vector3().subVectors(to, from)
-    const length = direction.length()
-    const geometry = new THREE.CylinderGeometry(radius, radius, length, 8)
-    const material = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.1 })
-    const cylinder = new THREE.Mesh(geometry, material)
-    cylinder.castShadow = true
-    cylinder.receiveShadow = true
-    const mid = new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5)
-    cylinder.position.copy(mid)
-    cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize())
-    return cylinder
-  }
-
-  function createLabel(text, position, fontSize = '20px', color = '#e0f0ff', bg = 'rgba(10,25,45,0.75)') {
-    const div = document.createElement('div')
-    div.textContent = text
-    div.style.color = color
-    div.style.fontSize = fontSize
-    div.style.fontWeight = '500'
-    div.style.textShadow = '0 2px 15px #000000'
-    div.style.padding = '8px 22px'
-    div.style.borderRadius = '40px'
-    div.style.background = bg
-    div.style.backdropFilter = 'blur(10px)'
-    div.style.border = '1px solid #3a7bd5'
-    div.style.pointerEvents = 'none'
-    div.style.letterSpacing = '2px'
-    div.style.whiteSpace = 'nowrap'
-    const label = new CSS2DObject(div)
-    label.position.set(position[0], position[1], position[2])
-    return label
-  }
-
-  // --- 构建复杂的溶剂化簇: 中心 Li+，周围 2 EC + 2 DMC，以及一个 PF6- 阴离子 ---
-  const moleculeGroup = new THREE.Group()
-
-  // 为了方便调整，所有坐标相对于组中心 (0,0,0) 附近，Li+ 位于 (0, 1.8, 0)
-  const liPos = [0.0, 1.8, 0.0]
-  moleculeGroup.add(createAtom(0xb07cc9, 0.58, liPos, 0.3, 0.25, true)) // 锂离子稍大且发光
-
-  // 标签: Li⁺
-  moleculeGroup.add(createLabel('Li⁺', [liPos[0], liPos[1] + 1.2, liPos[2]], '22px', '#e0b0ff', 'rgba(40,20,50,0.8)'))
-
-  // ---------- 分子1: EC (碳酸乙烯酯) 位于 Li 左侧前方 ----------
-  const ec1Atoms = [
-    { color: 0x808080, radius: 0.45, pos: [-1.8, 2.1, 1.5] }, // C羰基
-    { color: 0xff3333, radius: 0.48, pos: [-2.0, 2.5, 2.6] }, // O=
-    { color: 0xff3333, radius: 0.48, pos: [-0.8, 1.5, 2.0] }, // O醚
-    { color: 0x808080, radius: 0.45, pos: [-0.5, 2.4, 0.9] }, // C环
-    { color: 0x808080, radius: 0.45, pos: [-2.3, 2.9, 0.7] }, // C环
-    { color: 0xff3333, radius: 0.48, pos: [-2.8, 2.1, 1.4] }, // O醚
-    { color: 0xeeeeee, radius: 0.28, pos: [-0.2, 2.8, 1.5] },
-    { color: 0xeeeeee, radius: 0.28, pos: [-1.0, 2.9, -0.2] },
-    { color: 0xeeeeee, radius: 0.28, pos: [-3.0, 3.2, 0.1] },
-    { color: 0xeeeeee, radius: 0.28, pos: [-2.7, 3.5, 1.5] },
-  ]
-  const ec1Bonds = [
-    [0, 1], [0, 2], [0, 5], [2, 3], [3, 4], [4, 5], [3, 6], [3, 7], [4, 8], [4, 9]
-  ]
-  ec1Atoms.forEach(a => moleculeGroup.add(createAtom(a.color, a.radius, a.pos, 0.15, 0.35)))
-  ec1Bonds.forEach(b => moleculeGroup.add(createBond(ec1Atoms[b[0]].pos, ec1Atoms[b[1]].pos, 0xaaaaaa, 0.065)))
-  moleculeGroup.add(createLabel('EC (1)', [-1.8, 3.7, 1.8], '18px', '#b8d0ff'))
-
-  // ---------- 分子2: EC 位于右侧后方 ----------
-  const ec2Atoms = [
-    { color: 0x808080, radius: 0.45, pos: [2.2, 2.0, -1.0] },
-    { color: 0xff3333, radius: 0.48, pos: [2.5, 2.5, -2.0] },
-    { color: 0xff3333, radius: 0.48, pos: [1.4, 1.2, -1.5] },
-    { color: 0x808080, radius: 0.45, pos: [1.8, 1.8, 0.5] },
-    { color: 0x808080, radius: 0.45, pos: [3.2, 2.0, 0.8] },
-    { color: 0xff3333, radius: 0.48, pos: [3.0, 1.2, -0.5] },
-    { color: 0xeeeeee, radius: 0.28, pos: [1.3, 2.5, 1.0] },
-    { color: 0xeeeeee, radius: 0.28, pos: [2.5, 1.0, 1.2] },
-    { color: 0xeeeeee, radius: 0.28, pos: [4.0, 2.5, 1.0] },
-    { color: 0xeeeeee, radius: 0.28, pos: [3.0, 0.8, -1.5] },
-  ]
-  const ec2Bonds = [[0, 1], [0, 2], [0, 5], [2, 3], [3, 4], [4, 5], [3, 6], [3, 7], [4, 8], [4, 9]]
-  ec2Atoms.forEach(a => moleculeGroup.add(createAtom(a.color, a.radius, a.pos, 0.15, 0.35)))
-  ec2Bonds.forEach(b => moleculeGroup.add(createBond(ec2Atoms[b[0]].pos, ec2Atoms[b[1]].pos, 0xaaaaaa, 0.065)))
-  moleculeGroup.add(createLabel('EC (2)', [2.8, 3.5, -0.5], '18px', '#b8d0ff'))
-
-  // ---------- 分子3: DMC 位于左后方 ----------
-  const dmc1Atoms = [
-    { color: 0x808080, radius: 0.45, pos: [-2.0, 1.2, -2.0] }, // 羰基C
-    { color: 0xff3333, radius: 0.48, pos: [-1.8, 1.5, -3.2] }, // O=
-    { color: 0xff3333, radius: 0.48, pos: [-3.2, 0.8, -1.5] }, // O-左
-    { color: 0xff3333, radius: 0.48, pos: [-0.8, 0.8, -1.8] }, // O-右
-    { color: 0x808080, radius: 0.45, pos: [-4.0, 1.5, -1.0] }, // 甲基C
-    { color: 0x808080, radius: 0.45, pos: [0.0, 1.2, -1.2] }, // 甲基C
-    { color: 0xeeeeee, radius: 0.28, pos: [-4.5, 2.2, -0.2] },
-    { color: 0xeeeeee, radius: 0.28, pos: [-4.8, 0.8, -1.8] },
-    { color: 0xeeeeee, radius: 0.28, pos: [-3.8, 2.2, -2.0] },
-    { color: 0xeeeeee, radius: 0.28, pos: [0.6, 1.8, -0.4] },
-    { color: 0xeeeeee, radius: 0.28, pos: [0.6, 0.5, -1.8] },
-    { color: 0xeeeeee, radius: 0.28, pos: [-0.4, 1.8, -2.2] },
-  ]
-  const dmc1Bonds = [[0, 1], [0, 2], [0, 3], [2, 4], [3, 5], [4, 6], [4, 7], [4, 8], [5, 9], [5, 10], [5, 11]]
-  dmc1Atoms.forEach(a => moleculeGroup.add(createAtom(a.color, a.radius, a.pos, 0.15, 0.35)))
-  dmc1Bonds.forEach(b => moleculeGroup.add(createBond(dmc1Atoms[b[0]].pos, dmc1Atoms[b[1]].pos, 0xbbbbbb, 0.06)))
-  moleculeGroup.add(createLabel('DMC (1)', [-2.5, 2.8, -2.2], '18px', '#c0d8ff'))
-
-  // ---------- 分子4: DMC 位于右侧前方 ----------
-  const dmc2Atoms = [
-    { color: 0x808080, radius: 0.45, pos: [2.5, 2.5, 2.2] },
-    { color: 0xff3333, radius: 0.48, pos: [2.8, 3.2, 3.0] },
-    { color: 0xff3333, radius: 0.48, pos: [3.5, 1.8, 1.5] },
-    { color: 0xff3333, radius: 0.48, pos: [1.2, 2.0, 2.5] },
-    { color: 0x808080, radius: 0.45, pos: [4.5, 2.5, 1.0] },
-    { color: 0x808080, radius: 0.45, pos: [0.5, 2.8, 1.8] },
-    { color: 0xeeeeee, radius: 0.28, pos: [5.2, 2.0, 1.8] },
-    { color: 0xeeeeee, radius: 0.28, pos: [5.0, 3.5, 0.8] },
-    { color: 0xeeeeee, radius: 0.28, pos: [4.2, 1.8, 0.0] },
-    { color: 0xeeeeee, radius: 0.28, pos: [0.0, 3.5, 2.5] },
-    { color: 0xeeeeee, radius: 0.28, pos: [1.0, 3.5, 1.0] },
-    { color: 0xeeeeee, radius: 0.28, pos: [-0.2, 2.0, 1.2] },
-  ]
-  const dmc2Bonds = [[0, 1], [0, 2], [0, 3], [2, 4], [3, 5], [4, 6], [4, 7], [4, 8], [5, 9], [5, 10], [5, 11]]
-  dmc2Atoms.forEach(a => moleculeGroup.add(createAtom(a.color, a.radius, a.pos, 0.15, 0.35)))
-  dmc2Bonds.forEach(b => moleculeGroup.add(createBond(dmc2Atoms[b[0]].pos, dmc2Atoms[b[1]].pos, 0xbbbbbb, 0.06)))
-  moleculeGroup.add(createLabel('DMC (2)', [3.0, 4.0, 2.5], '18px', '#c0d8ff'))
-
-  // ---------- PF6- 阴离子 (稍远，位于上方偏后) ----------
-  const pf6Pos = [0.5, 3.8, -2.8]
-  const pfAtoms = [
-    { color: 0xff9933, radius: 0.55, pos: pf6Pos }, // P
-    { color: 0x90e050, radius: 0.42, pos: [pf6Pos[0] + 1.5, pf6Pos[1], pf6Pos[2]] },
-    { color: 0x90e050, radius: 0.42, pos: [pf6Pos[0] - 1.5, pf6Pos[1], pf6Pos[2]] },
-    { color: 0x90e050, radius: 0.42, pos: [pf6Pos[0], pf6Pos[1] + 1.5, pf6Pos[2]] },
-    { color: 0x90e050, radius: 0.42, pos: [pf6Pos[0], pf6Pos[1] - 1.5, pf6Pos[2]] },
-    { color: 0x90e050, radius: 0.42, pos: [pf6Pos[0], pf6Pos[1], pf6Pos[2] + 1.5] },
-    { color: 0x90e050, radius: 0.42, pos: [pf6Pos[0], pf6Pos[1], pf6Pos[2] - 1.5] },
-  ]
-  pfAtoms.forEach(a => moleculeGroup.add(createAtom(a.color, a.radius, a.pos, 0.15, 0.3)))
-  for (let i = 1; i <= 6; i++) moleculeGroup.add(createBond(pfAtoms[0].pos, pfAtoms[i].pos, 0xaaccaa, 0.08))
-  moleculeGroup.add(createLabel('PF₆⁻', [pf6Pos[0], pf6Pos[1] + 2.2, pf6Pos[2]], '20px', '#b0ffb0', 'rgba(20,50,30,0.8)'))
-
-  scene.add(moleculeGroup)
-
-  // --- 添加动态粒子云 (模拟电子云/溶剂分子轨迹) ---
-  const cloudParticles = new THREE.BufferGeometry()
-  const particleCount = 800
-  const positions = new Float32Array(particleCount * 3)
-  const colors = new Float32Array(particleCount * 3)
-  for (let i = 0; i < particleCount; i++) {
-    const r = 3.8 + Math.random() * 5.5
-    const theta = Math.random() * Math.PI * 2
-    const phi = Math.acos((Math.random() * 2) - 1)
-    positions[i * 3] = Math.sin(phi) * Math.cos(theta) * r
-    positions[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * r + 1.8
-    positions[i * 3 + 2] = Math.cos(phi) * r
-
-    const col = new THREE.Color().setHSL(0.6 + Math.random() * 0.3, 0.8, 0.5)
-    colors[i * 3] = col.r
-    colors[i * 3 + 1] = col.g
-    colors[i * 3 + 2] = col.b
-  }
-  cloudParticles.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  cloudParticles.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-  const particleMat = new THREE.PointsMaterial({
-    size: 0.08, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
-  })
-  particles = new THREE.Points(cloudParticles, particleMat)
-  scene.add(particles)
-
-  // 额外光带/轨迹线
-  const trajectoryPoints = []
-  for (let i = 0; i <= 200; i++) {
-    const t = i / 200 * Math.PI * 2
-    trajectoryPoints.push(new THREE.Vector3(4.5 * Math.cos(t * 1.3), 1.5 + 1.2 * Math.sin(t * 2), 4.5 * Math.sin(t * 1.7)))
-  }
-  const trajectoryLine = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints(trajectoryPoints),
-    new THREE.LineBasicMaterial({ color: 0x3a7bd5 })
-  )
-  scene.add(trajectoryLine)
-
-  // 添加几个连接配位键的虚线表示配位作用
-  const ligandLines = [
-    [liPos, [-1.8, 2.1, 1.5]], [liPos, [2.2, 2.0, -1.0]], [liPos, [-2.0, 1.2, -2.0]], [liPos, [2.5, 2.5, 2.2]]
-  ]
-  ligandLines.forEach(pair => {
-    const points = [new THREE.Vector3(...pair[0]), new THREE.Vector3(...pair[1])]
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.25 }))
-    scene.add(line)
-  })
-
-  // --- 窗口自适应 ---
-  resizeHandler = () => {
-    if (!container || !camera || !renderer || !labelRenderer || !composer) return
-    const newWidth = container.clientWidth
-    const newHeight = container.clientHeight
-    camera.aspect = newWidth / newHeight
+  // 使用 ResizeObserver 监听容器尺寸变化
+  const resizeObs = new ResizeObserver(() => {
+    const w = container.clientWidth
+    const h = container.clientHeight
+    if (w === 0 || h === 0) return
+    camera.aspect = w / h
     camera.updateProjectionMatrix()
-    renderer.setSize(newWidth, newHeight)
-    composer.setSize(newWidth, newHeight)
-    labelRenderer.setSize(newWidth, newHeight)
+    renderer.setSize(w, h)
+  })
+  resizeObs.observe(container)
+
+  return {
+    scene, camera, renderer, controls, molGroup, bondGroup, radii, resizeObs, container
   }
-
-  window.addEventListener('resize', resizeHandler, false)
-
-  // 点击切换自动旋转
-  clickHandler = () => {
-    controls.autoRotate = !controls.autoRotate
-  }
-  renderer.domElement.addEventListener('click', clickHandler)
-
-  // --- 动画和渲染循环 ---
-  let clock = new THREE.Clock()
-
-  function animate() {
-    animationId = requestAnimationFrame(animate)
-    const delta = clock.getDelta()
-    const elapsedTime = performance.now() * 0.001
-
-    controls.update()
-
-    // 星星缓慢旋转
-    if (stars) {
-      stars.rotation.y += 0.0002
-      stars.rotation.x += 0.0001
-    }
-
-    // 环旋转
-    if (ring) {
-      ring.rotation.z += 0.002
-    }
-
-    // 粒子云动态浮动
-    if (particles) {
-      particles.rotation.y += 0.001
-      particles.rotation.x = Math.sin(elapsedTime * 0.1) * 0.1
-    }
-
-    // 轨迹线微弱动画
-    if (trajectoryLine) {
-      trajectoryLine.rotation.y += 0.002
-    }
-
-    // 使用composer渲染 (带泛光)
-    composer.render()
-    labelRenderer.render(scene, camera)
-  }
-
-  animate()
-  console.log('✨ 完整Li⁺溶剂化壳层结构已加载 — 包含 Li⁺ · 2EC · 2DMC · PF₆⁻，带泛光特效')
 }
 
-// 清理Three.js资源
-const cleanupThreeJS = () => {
-  if (animationId) {
-    cancelAnimationFrame(animationId)
-    animationId = null
+// 销毁场景
+function disposeScene(s) {
+  if (!s) return
+  if (s.resizeObs) s.resizeObs.disconnect()
+  s.scene.traverse(obj => {
+    if (obj.geometry) obj.geometry.dispose()
+    if (obj.material) {
+      if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose())
+      else obj.material.dispose()
+    }
+  })
+  if (s.container && s.renderer.domElement && s.container.contains(s.renderer.domElement)) {
+    s.container.removeChild(s.renderer.domElement)
   }
+  s.renderer.dispose()
+}
 
-  // 移除事件监听器
-  if (resizeHandler) {
-    window.removeEventListener('resize', resizeHandler)
-    resizeHandler = null
-  }
+// ========== 溶液全景 ==========
+const initPanorama = () => {
+  const s = initMolScene(molViewer, (molGroup, bondGroup, radii) => {
+    function addMol(atoms, bonds, bc = 0xaaaaaa, br = 0.06) {
+      atoms.forEach(a => { molGroup.add(createAtom(a.color, a.radius, a.pos)); radii.push(a.radius) })
+      bonds.forEach(b => bondGroup.add(createBond(atoms[b[0]].pos, atoms[b[1]].pos, bc, br)))
+    }
 
-  if (renderer && clickHandler && renderer.domElement) {
-    renderer.domElement.removeEventListener('click', clickHandler)
-    clickHandler = null
-  }
+    // Li⁺ x2
+    const LI = 0xb07cc9;
+    [[-5, 2, 3], [6, -1, -4]].forEach(p => addMol([{ color: LI, radius: 0.55, pos: p }], []))
 
-  // 遍历场景并释放所有资源
-  if (scene) {
-    scene.traverse((object) => {
-      if (object instanceof THREE.Mesh) {
-        if (object.geometry) {
-          object.geometry.dispose()
-        }
-        if (object.material) {
-          if (Array.isArray(object.material)) {
-            object.material.forEach(m => m.dispose())
-          } else {
-            object.material.dispose()
-          }
-        }
+    // PF₆⁻ x2
+    const PF_P = 0xff9933, PF_F = 0x90e050;
+    [[-6, -1, -5], [5, 3, 5]].forEach(c => {
+      const a = [
+        { color: PF_P, radius: 0.52, pos: c },
+        { color: PF_F, radius: 0.38, pos: [c[0]+1.4,c[1],c[2]] },
+        { color: PF_F, radius: 0.38, pos: [c[0]-1.4,c[1],c[2]] },
+        { color: PF_F, radius: 0.38, pos: [c[0],c[1]+1.4,c[2]] },
+        { color: PF_F, radius: 0.38, pos: [c[0],c[1]-1.4,c[2]] },
+        { color: PF_F, radius: 0.38, pos: [c[0],c[1],c[2]+1.4] },
+        { color: PF_F, radius: 0.38, pos: [c[0],c[1],c[2]-1.4] },
+      ]
+      addMol(a, [[0,1],[0,2],[0,3],[0,4],[0,5],[0,6]], 0xaaccaa, 0.07)
+    })
+
+    // EC x3
+    const EC_C = 0x5470C6, EC_O = 0xff4444, EC_H = 0xcccccc
+    ;[[-3,4,-2],[4,-2,2],[-1,-3,5]].forEach(c => {
+      const a = [
+        { color: EC_C, radius: 0.42, pos: c },
+        { color: EC_O, radius: 0.45, pos: [c[0]-0.3,c[1]+1.1,c[2]+0.8] },
+        { color: EC_O, radius: 0.45, pos: [c[0]+0.8,c[1]-0.6,c[2]+0.9] },
+        { color: EC_C, radius: 0.42, pos: [c[0]+1.4,c[1]+0.3,c[2]+0.4] },
+        { color: EC_C, radius: 0.42, pos: [c[0]-1.2,c[1]+0.5,c[2]-0.3] },
+        { color: EC_O, radius: 0.45, pos: [c[0]-0.4,c[1]-0.8,c[2]-0.9] },
+        { color: EC_H, radius: 0.25, pos: [c[0]+1.8,c[1]+1.0,c[2]+0.2] },
+        { color: EC_H, radius: 0.25, pos: [c[0]+2.0,c[1]-0.2,c[2]+0.8] },
+        { color: EC_H, radius: 0.25, pos: [c[0]-1.8,c[1]+1.2,c[2]-0.6] },
+        { color: EC_H, radius: 0.25, pos: [c[0]-2.0,c[1]-0.1,c[2]-0.8] },
+      ]
+      addMol(a, [[0,1],[0,2],[0,5],[2,3],[3,4],[4,5],[3,6],[3,7],[4,8],[4,9]], 0x7a8eb5, 0.055)
+    })
+
+    // DMC x3
+    const DMC_C = 0x3BA272, DMC_O = 0xff4444, DMC_H = 0xcccccc
+    ;[[2,4,-5],[-5,-2,1],[0,-4,-3]].forEach(c => {
+      const a = [
+        { color: DMC_C, radius: 0.42, pos: c },
+        { color: DMC_O, radius: 0.45, pos: [c[0]+0.2,c[1]+1.2,c[2]+0.6] },
+        { color: DMC_O, radius: 0.45, pos: [c[0]+1.3,c[1]-0.3,c[2]-0.5] },
+        { color: DMC_O, radius: 0.45, pos: [c[0]-1.1,c[1]-0.5,c[2]+0.7] },
+        { color: DMC_C, radius: 0.42, pos: [c[0]+2.3,c[1]+0.2,c[2]-1.0] },
+        { color: DMC_C, radius: 0.42, pos: [c[0]-2.2,c[1]+0.1,c[2]+1.3] },
+        { color: DMC_H, radius: 0.25, pos: [c[0]+2.8,c[1]+1.0,c[2]-0.5] },
+        { color: DMC_H, radius: 0.25, pos: [c[0]+2.9,c[1]-0.5,c[2]-0.4] },
+        { color: DMC_H, radius: 0.25, pos: [c[0]+2.5,c[1]+0.2,c[2]-2.0] },
+        { color: DMC_H, radius: 0.25, pos: [c[0]-2.8,c[1]+1.0,c[2]+0.8] },
+        { color: DMC_H, radius: 0.25, pos: [c[0]-2.7,c[1]-0.6,c[2]+0.7] },
+        { color: DMC_H, radius: 0.25, pos: [c[0]-2.5,c[1]+0.2,c[2]+2.3] },
+      ]
+      addMol(a, [[0,1],[0,2],[0,3],[2,4],[3,5],[4,6],[4,7],[4,8],[5,9],[5,10],[5,11]], 0x6daa8e, 0.055)
+    })
+
+    // 粒子云
+    const cloudGeo = new THREE.BufferGeometry()
+    const n = 400
+    const pp = new Float32Array(n * 3), pc = new Float32Array(n * 3)
+    for (let i = 0; i < n; i++) {
+      const r = 4 + Math.random() * 8
+      const th = Math.random() * Math.PI * 2
+      const ph = Math.acos(Math.random() * 2 - 1)
+      pp[i*3] = Math.sin(ph)*Math.cos(th)*r; pp[i*3+1] = Math.sin(ph)*Math.sin(th)*r; pp[i*3+2] = Math.cos(ph)*r
+      const col = new THREE.Color().setHSL(0.58+Math.random()*0.12, 0.3, 0.6)
+      pc[i*3]=col.r; pc[i*3+1]=col.g; pc[i*3+2]=col.b
+    }
+    cloudGeo.setAttribute('position', new THREE.BufferAttribute(pp, 3))
+    cloudGeo.setAttribute('color', new THREE.BufferAttribute(pc, 3))
+    const pts = new THREE.Points(cloudGeo, new THREE.PointsMaterial({ size: 0.06, vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false }))
+    molGroup.add(pts)
+  }, [14, 10, 14])
+  if (s) scenes.push(s)
+}
+
+// ========== Li⁺ 单独 ==========
+const initLi = () => {
+  const s = initMolScene(molLi, (molGroup, bondGroup, radii) => {
+    molGroup.add(createAtom(0xb07cc9, 0.8, [0, 0, 0]))
+    radii.push(0.8)
+  }, [4, 3, 4])
+  if (s) scenes.push(s)
+}
+
+// ========== PF₆⁻ 单独 ==========
+const initPF6 = () => {
+  const s = initMolScene(molPF6, (molGroup, bondGroup, radii) => {
+    const c = [0, 0, 0]
+    const a = [
+      { color: 0xff9933, radius: 0.7, pos: c },
+      { color: 0x90e050, radius: 0.5, pos: [1.5,0,0] },
+      { color: 0x90e050, radius: 0.5, pos: [-1.5,0,0] },
+      { color: 0x90e050, radius: 0.5, pos: [0,1.5,0] },
+      { color: 0x90e050, radius: 0.5, pos: [0,-1.5,0] },
+      { color: 0x90e050, radius: 0.5, pos: [0,0,1.5] },
+      { color: 0x90e050, radius: 0.5, pos: [0,0,-1.5] },
+    ]
+    a.forEach(x => { molGroup.add(createAtom(x.color, x.radius, x.pos)); radii.push(x.radius) })
+    for (let i = 1; i <= 6; i++) bondGroup.add(createBond(a[0].pos, a[i].pos, 0xaaccaa, 0.09))
+  }, [5, 3, 5])
+  if (s) scenes.push(s)
+}
+
+// ========== EC 单独 ==========
+const initEC = () => {
+  const s = initMolScene(molEC, (molGroup, bondGroup, radii) => {
+    const a = [
+      { color: 0x5470C6, radius: 0.55, pos: [0, 0, 0] },
+      { color: 0xff4444, radius: 0.58, pos: [-0.3, 1.4, 1.0] },
+      { color: 0xff4444, radius: 0.58, pos: [1.0, -0.7, 1.1] },
+      { color: 0x5470C6, radius: 0.55, pos: [1.7, 0.4, 0.5] },
+      { color: 0x5470C6, radius: 0.55, pos: [-1.5, 0.6, -0.4] },
+      { color: 0xff4444, radius: 0.58, pos: [-0.5, -1.0, -1.1] },
+      { color: 0xcccccc, radius: 0.32, pos: [2.2, 1.2, 0.2] },
+      { color: 0xcccccc, radius: 0.32, pos: [2.5, -0.3, 1.0] },
+      { color: 0xcccccc, radius: 0.32, pos: [-2.2, 1.4, -0.7] },
+      { color: 0xcccccc, radius: 0.32, pos: [-2.5, -0.2, -1.0] },
+    ]
+    a.forEach(x => { molGroup.add(createAtom(x.color, x.radius, x.pos)); radii.push(x.radius) })
+    ;[[0,1],[0,2],[0,5],[2,3],[3,4],[4,5],[3,6],[3,7],[4,8],[4,9]].forEach(b =>
+      bondGroup.add(createBond(a[b[0]].pos, a[b[1]].pos, 0x7a8eb5, 0.07))
+    )
+  }, [5, 4, 5])
+  if (s) scenes.push(s)
+}
+
+// ========== DMC 单独 ==========
+const initDMC = () => {
+  const s = initMolScene(molDMC, (molGroup, bondGroup, radii) => {
+    const a = [
+      { color: 0x3BA272, radius: 0.55, pos: [0, 0, 0] },
+      { color: 0xff4444, radius: 0.58, pos: [0.2, 1.4, 0.7] },
+      { color: 0xff4444, radius: 0.58, pos: [1.5, -0.4, -0.6] },
+      { color: 0xff4444, radius: 0.58, pos: [-1.3, -0.6, 0.8] },
+      { color: 0x3BA272, radius: 0.55, pos: [2.8, 0.2, -1.2] },
+      { color: 0x3BA272, radius: 0.55, pos: [-2.6, 0.1, 1.5] },
+      { color: 0xcccccc, radius: 0.32, pos: [3.4, 1.2, -0.6] },
+      { color: 0xcccccc, radius: 0.32, pos: [3.5, -0.6, -0.5] },
+      { color: 0xcccccc, radius: 0.32, pos: [3.0, 0.2, -2.4] },
+      { color: 0xcccccc, radius: 0.32, pos: [-3.4, 1.2, 0.9] },
+      { color: 0xcccccc, radius: 0.32, pos: [-3.3, -0.7, 0.8] },
+      { color: 0xcccccc, radius: 0.32, pos: [-3.0, 0.2, 2.7] },
+    ]
+    a.forEach(x => { molGroup.add(createAtom(x.color, x.radius, x.pos)); radii.push(x.radius) })
+    ;[[0,1],[0,2],[0,3],[2,4],[3,5],[4,6],[4,7],[4,8],[5,9],[5,10],[5,11]].forEach(b =>
+      bondGroup.add(createBond(a[b[0]].pos, a[b[1]].pos, 0x6daa8e, 0.07))
+    )
+  }, [6, 4, 6])
+  if (s) scenes.push(s)
+}
+
+// 切换球棍/空间填充
+const switchDisplayStyle = (style) => {
+  const isSpaceFilling = style === 'spaceFilling'
+  const scale = isSpaceFilling ? 2.2 : 1.0
+  scenes.forEach(s => {
+    if (!s || !s.molGroup) return
+    s.molGroup.children.forEach((child) => {
+      if (child instanceof THREE.Mesh && child.geometry?.type === 'SphereGeometry') {
+        child.scale.setScalar(scale)
       }
     })
-  }
-
-  if (renderer && molViewer.value) {
-    if (renderer.domElement && molViewer.value.contains(renderer.domElement)) {
-      molViewer.value.removeChild(renderer.domElement)
-    }
-    renderer.dispose()
-    renderer = null
-  }
-  if (labelRenderer && labelRenderer.domElement && molViewer.value && molViewer.value.contains(labelRenderer.domElement)) {
-    molViewer.value.removeChild(labelRenderer.domElement)
-    labelRenderer = null
-  }
-
-  scene = null
-  camera = null
-  controls = null
-  stars = null
-  composer = null
-  ring = null
-  particles = null
+    if (s.bondGroup) s.bondGroup.visible = !isSpaceFilling
+  })
 }
 
-watch(currentChart, () => {
-  renderPlotly()
-})
+// 统一动画循环
+let globalAnimId = null
+function globalAnimate() {
+  globalAnimId = requestAnimationFrame(globalAnimate)
+  scenes.forEach(s => {
+    if (!s) return
+    s.controls.update()
+    s.renderer.render(s.scene, s.camera)
+  })
+}
 
 onMounted(() => {
   nextTick(() => {
-    renderPlotly()
+    renderAllCharts()
     setTimeout(() => {
-      initThreeJS()
-    }, 300)
+      initPanorama()
+      initLi()
+      initPF6()
+      initEC()
+      initDMC()
+      if (scenes.length > 0) globalAnimate()
+    }, 500)
   })
+  window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
-  cleanupThreeJS()
+  cancelAnimationFrame(globalAnimId)
+  globalAnimId = null
+  scenes.forEach(s => disposeScene(s))
+  scenes.length = 0
+  Object.values(chartInstances).forEach(chart => {
+    if (chart && !chart.isDisposed()) chart.dispose()
+  })
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
 <style scoped>
 .visualization-container {
   width: 100%;
-}
-
-/* 左侧结果表样式 */
-.result-card {
-  height: 860px;
-  display: flex;
-  flex-direction: column;
 }
 
 .card-header {
@@ -859,135 +878,70 @@ onUnmounted(() => {
   font-size: 16px;
 }
 
-.result-table {
-  padding: 10px 0;
-}
-
-.result-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 15px;
-  margin-bottom: 4px;
-  background: #f8fafc;
-  border-radius: 6px;
-  transition: background 0.2s;
-}
-
-.result-row.indent-0 {
-  padding-left: 0;
-}
-
-.result-row.indent-1 {
-  padding-left: 20px;
-}
-
-.result-row.header-item {
-  background: #e8f4ff;
-  border-left: 4px solid #409EFF;
-}
-
-.result-row:hover {
-  background: #e8f4ff;
-}
-
-.result-row.indent-2:hover {
-  background: #dcf0ff;
-}
-
-.result-label {
-  font-weight: 500;
-  color: #606266;
-  font-size: 14px;
-}
-
-.result-row.header-item .result-label {
-  font-weight: 600;
-  color: #409EFF;
-  font-size: 15px;
-}
-
-.result-value {
-  font-weight: 600;
-  color: #303133;
-  font-size: 15px;
-}
-
-.result-value.negative {
-  color: #409EFF;
-}
-
-.result-unit {
-  color: #909399;
-  font-weight: normal;
-  font-size: 13px;
-  margin-left: 4px;
-}
-
-.summary-section {
-  padding: 15px;
-  background: #f0f9ff;
-  border-radius: 8px;
-  margin-top: 10px;
-}
-
-.summary-section h4 {
-  margin: 0 0 12px 0;
-  color: #409EFF;
-  font-size: 14px;
-}
-
-.summary-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 13px;
-}
-
-.summary-item:last-child {
-  margin-bottom: 0;
-}
-
-.summary-item span:first-child {
-  color: #606266;
-}
-
-/* 右侧样式 */
-.chart-card {
+.dashboard-card {
   display: flex;
   flex-direction: column;
 }
 
-.chart-area {
+.chart-item {
   width: 100%;
   height: 280px;
-}
-
-.mol-card {
-  display: flex;
-  flex-direction: column;
+  min-height: 240px;
 }
 
 .mol-area {
   width: 100%;
-  min-height: 440px;
-  height: 440px;
+  min-height: 500px;
+  height: 500px;
   position: relative;
   border-radius: 6px;
   overflow: visible;
   border: 1px solid #EBEEF5;
-  background: #f8fafc;
+  background: #eef1f5;
   display: block;
 }
 
-/* 响应式调整 */
+.mol-legend {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding: 10px 0 4px;
+  font-size: 13px;
+  color: #606266;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.mol-item {
+  width: 100%;
+  height: 280px;
+  min-height: 240px;
+  border-radius: 6px;
+  border: 1px solid #EBEEF5;
+  background: #eef1f5;
+}
+
+.molecule-card :deep(.el-card__header) {
+  padding: 10px 16px;
+}
+
 @media (max-width: 1600px) {
   .mol-area {
-    height: 340px;
+    height: 380px;
   }
-  .result-card {
-    height: 680px;
+  .chart-item {
+    min-height: 200px;
   }
 }
 </style>

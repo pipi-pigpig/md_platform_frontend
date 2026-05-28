@@ -323,6 +323,7 @@
 
 <script>
 import { simulationApi, systemApi } from '../api.js'
+import { ElectrolyteFormula } from '../models/ElectrolyteFormula.js'
 
 export default {
   name: 'SimulationForm',
@@ -522,112 +523,26 @@ export default {
   },
 
   methods: {
-    // 溶剂类型映射：后端格式转前端格式
-    mapSolventType(backendType) {
-      if (!backendType) return 'EC_DMC'
-      // 处理后端返回的格式，如 "EC/DMC" -> "EC_DMC"
-      const typeMap = {
-        'EC/DMC': 'EC_DMC',
-        'EC/EMC': 'EC_EMC',
-        'EC': 'EC',
-        'DMC': 'DMC',
-        'WATER': 'WATER',
-        'OTHER': 'OTHER'
-      }
-      return typeMap[backendType] || backendType.replace('/', '_')
-    },
-
     // 从配方数据填充表单参数
     fillFormFromSystem(system) {
+      const formula = new ElectrolyteFormula(system)
+
       // 填充温度和压力
-      this.form.temperature = system.temperature || 298.15
-      this.form.pressure = system.pressure || 1.0
+      this.form.temperature = formula.temperature || 298.15
+      this.form.pressure = formula.pressure || 1.0
 
-      // 解析溶剂信息
-      if (system.solventInfo) {
-        const solventData = this.parseJsonField(system.solventInfo)
-        if (solventData) {
-          // 判断溶剂类型和比例
-          const solvents = Array.isArray(solventData) ? solventData : (solventData.solvents || [])
+      // 使用实体类构造时计算好的属性
+      this.form.solventType = formula.solventType
+      this.form.saltType = formula.saltType
 
-          if (solvents.length > 0) {
-            // 判断溶剂类型
-            const solventNames = solvents.map(s => s.name)
-            if (solventNames.includes('EC') && solventNames.includes('DMC')) {
-              this.form.solventType = 'EC_DMC'
-              // 计算比例
-              const totalRatio = solvents.reduce((sum, s) => sum + (s.mole_ratio || s.moleFraction || 0), 0)
-              const ecSolvent = solvents.find(s => s.name === 'EC')
-              const dmcSolvent = solvents.find(s => s.name === 'DMC')
-              if (totalRatio > 0) {
-                this.form.ecRatio = Math.round((ecSolvent?.mole_ratio || ecSolvent?.moleFraction || 0) / totalRatio * 100)
-                this.form.dmcRatio = Math.round((dmcSolvent?.mole_ratio || dmcSolvent?.moleFraction || 0) / totalRatio * 100)
-              }
-            } else if (solventNames.includes('EC') && solventNames.includes('EMC')) {
-              this.form.solventType = 'EC_EMC'
-              const totalRatio = solvents.reduce((sum, s) => sum + (s.mole_ratio || s.moleFraction || 0), 0)
-              const ecSolvent = solvents.find(s => s.name === 'EC')
-              const emcSolvent = solvents.find(s => s.name === 'EMC')
-              if (totalRatio > 0) {
-                this.form.ecRatio = Math.round((ecSolvent?.mole_ratio || ecSolvent?.moleFraction || 0) / totalRatio * 100)
-                this.form.dmcRatio = Math.round((emcSolvent?.mole_ratio || emcSolvent?.moleFraction || 0) / totalRatio * 100)
-              }
-            } else if (solventNames.includes('EC') && !solventNames.includes('DMC') && !solventNames.includes('EMC')) {
-              this.form.solventType = 'EC'
-              this.form.ecRatio = 100
-              this.form.dmcRatio = 0
-            } else if (solventNames.includes('DMC') && !solventNames.includes('EC')) {
-              this.form.solventType = 'DMC'
-              this.form.ecRatio = 0
-              this.form.dmcRatio = 100
-            } else if (solventNames.includes('WATER') || solventNames.includes('Water')) {
-              this.form.solventType = 'WATER'
-              this.form.ecRatio = 0
-              this.form.dmcRatio = 0
-            } else {
-              this.form.solventType = 'OTHER'
-              this.form.ecRatio = 50
-              this.form.dmcRatio = 50
-            }
-          }
-        }
+      if (formula.salts.length > 0) {
+        this.form.concentration = formula.salts[0].concentration || 1.0
       }
 
-      // 解析盐信息
-      if (system.saltInfo) {
-        const saltData = this.parseJsonField(system.saltInfo)
-        if (saltData && Array.isArray(saltData) && saltData.length > 0) {
-          const salt = saltData[0]
-          // 盐类型映射
-          const saltName = salt.name || ''
-          if (saltName.includes('LiPF6') || saltName.includes('LiPF')) {
-            this.form.saltType = 'LiPF6'
-          } else if (saltName.includes('LiFSI')) {
-            this.form.saltType = 'LiFSI'
-          } else if (saltName.includes('LiTFSI')) {
-            this.form.saltType = 'LiTFSI'
-          } else if (saltName.includes('NaCl')) {
-            this.form.saltType = 'NaCl'
-          }
-          // 浓度
-          this.form.concentration = salt.concentration || salt.concentration_mol_L || 1.0
-        }
-      }
-    },
-
-    // 解析 JSON 字段
-    parseJsonField(field) {
-      if (!field) return null
-      if (typeof field === 'object') return field
-      if (typeof field === 'string') {
-        if (field.trim() === '' || field === 'null') return null
-        try {
-          return JSON.parse(field)
-        } catch (e) {
-          return null
-        }
-      }
-      return null
+      // 计算溶剂比例
+      const ratios = formula.getSolventRatios()
+      this.form.ecRatio = ratios.ecRatio
+      this.form.dmcRatio = ratios.dmcRatio
     },
 
     // 加载配方列表

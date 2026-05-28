@@ -46,6 +46,12 @@ const routes = [
         meta: { requiresAuth: true }
     },
     {
+        path: '/simulations/:id',
+        name: 'SimulationDetail',
+        component: () => import('../views/SimulationDetail.vue'),
+        meta: { requiresAuth: true }
+    },
+    {
         path: '/systems',
         name: 'Systems',
         component: Systems,

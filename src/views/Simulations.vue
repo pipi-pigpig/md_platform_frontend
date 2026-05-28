@@ -176,12 +176,12 @@
             <template #default="{ row }">
               <div class="status-cell">
                 <el-tag
-                  :type="getStatusType(row.status)"
+                  :type="row.statusType"
                   :effect="row.status === 'RUNNING' ? 'light' : 'plain'"
                   size="small"
                 >
-                  <i :class="getStatusIcon(row.status)"></i>
-                  {{ getStatusText(row.status) }}
+                  <i :class="row.statusIcon"></i>
+                  {{ row.statusText }}
                 </el-tag>
 
                 <!-- 进度条（仅运行中任务显示） -->
@@ -205,8 +205,8 @@
                 :type="row.hardwareUsed === 'GPU' ? 'warning' : 'info'"
                 size="small"
               >
-                <i :class="getHardwareIcon(row.hardwareUsed)"></i>
-                {{ getHardwareText(row.hardwareUsed) }}
+                <i :class="row.hardwareIcon"></i>
+                {{ row.hardwareText }}
               </el-tag>
             </template>
           </el-table-column>
@@ -344,12 +344,12 @@
               <!-- 状态显示 -->
               <div class="card-status">
                 <el-tag
-                  :type="getStatusType(simulation.status)"
+                  :type="simulation.statusType"
                   :effect="simulation.status === 'RUNNING' ? 'light' : 'plain'"
                   size="default"
                 >
-                  <i :class="getStatusIcon(simulation.status)"></i>
-                  {{ getStatusText(simulation.status) }}
+                  <i :class="simulation.statusIcon"></i>
+                  {{ simulation.statusText }}
                 </el-tag>
 
                 <!-- 进度条 -->
@@ -381,7 +381,7 @@
               <div class="card-info">
                 <div class="info-item">
                   <i class="el-icon-cpu"></i>
-                  <span>{{ getHardwareText(simulation.hardwareUsed) }}</span>
+                  <span>{{ simulation.hardwareText }}</span>
                 </div>
                 
                 <div class="info-item">
@@ -485,245 +485,6 @@
       />
     </el-dialog>
 
-    <!-- 任务详情对话框 -->
-    <el-dialog
-      v-model="showDetailDialog"
-      :title="`模拟任务详情 - ${selectedSimulation?.jobName || ''}`"
-      width="1000px"
-      :fullscreen="detailFullscreen"
-      :destroy-on-close="true"
-      align-center
-    >
-      <div v-if="selectedSimulation" class="detail-container">
-        <!-- 详情操作栏 -->
-        <div class="detail-actions" style="margin-bottom: 15px;">
-          <el-button
-            type="primary"
-            @click="downloadResults(selectedSimulation.id)"
-            v-if="selectedSimulation.status === 'COMPLETED'"
-          >
-            下载结果文件
-          </el-button>
-
-          <el-button
-            type="warning"
-            @click="restartSimulation(selectedSimulation)"
-            v-if="selectedSimulation.status === 'FAILED' || selectedSimulation.status === 'CANCELLED'"
-          >
-            重新运行
-          </el-button>
-
-          <el-button
-            type="success"
-            @click="cloneSimulation(selectedSimulation)"
-          >
-            复制任务
-          </el-button>
-
-          <el-button
-            type="info"
-            @click="detailFullscreen = !detailFullscreen"
-            style="float: right"
-          >
-            {{ detailFullscreen ? '退出全屏' : '全屏查看' }}
-          </el-button>
-        </div>
-        
-        <el-tabs v-model="activeDetailTab" type="border-card">
-          <!-- 基础信息 Tab -->
-          <el-tab-pane label="基础信息" name="basic">
-            <div class="tab-scroll-area">
-              <el-card class="detail-section" shadow="never" style="margin-bottom: 15px">
-                <template #header>
-                  <div class="section-header">
-                    <i class="el-icon-info" style="margin-right: 5px; color: #409EFF"></i>
-                    <span style="font-weight: bold;">基础信息</span>
-                  </div>
-                </template>
-                
-                <el-descriptions :column="2" border size="default">
-                  <el-descriptions-item label="任务ID">{{ selectedSimulation.id }}</el-descriptions-item>
-                  <el-descriptions-item label="任务名称">{{ selectedSimulation.jobName }}</el-descriptions-item>
-                  <el-descriptions-item label="状态">
-                    <el-tag :type="getStatusType(selectedSimulation.status)">
-                      {{ getStatusText(selectedSimulation.status) }}
-                    </el-tag>
-                  </el-descriptions-item>
-                  <el-descriptions-item label="硬件">
-                    <el-tag :type="selectedSimulation.hardwareUsed === 'GPU' ? 'warning' : 'info'">
-                      {{ getHardwareText(selectedSimulation.hardwareUsed) }}
-                    </el-tag>
-                  </el-descriptions-item>
-                  <el-descriptions-item label="关联配方">
-                    <span v-if="selectedSimulation.systemId">
-                      配方 #{{ selectedSimulation.systemId }}
-                      <el-button type="text" @click="viewSystem(selectedSimulation.systemId)">查看</el-button>
-                    </span>
-                    <span v-else>未关联</span>
-                  </el-descriptions-item>
-                  <el-descriptions-item label="任务说明">
-                    {{ selectedSimulation.description || '未填写' }}
-                  </el-descriptions-item>
-                </el-descriptions>
-              </el-card>
-              
-              <el-card class="detail-section" shadow="never" style="margin-bottom: 15px">
-                <template #header>
-                  <div class="section-header">
-                    <i class="el-icon-time" style="margin-right: 5px; color: #409EFF"></i>
-                    <span style="font-weight: bold;">时间信息</span>
-                  </div>
-                </template>
-                
-                <el-descriptions :column="2" border size="default">
-                  <el-descriptions-item label="创建时间">{{ formatDate(selectedSimulation.createdAt) }}</el-descriptions-item>
-                  <el-descriptions-item label="更新时间">{{ formatDate(selectedSimulation.updatedAt) }}</el-descriptions-item>
-                  <el-descriptions-item label="开始时间" v-if="selectedSimulation.startTime">
-                    {{ formatDate(selectedSimulation.startTime) }}
-                  </el-descriptions-item>
-                  <el-descriptions-item label="结束时间" v-if="selectedSimulation.endTime">
-                    {{ formatDate(selectedSimulation.endTime) }}
-                  </el-descriptions-item>
-                  <el-descriptions-item label="执行时间" v-if="selectedSimulation.executionTime">
-                    {{ formatDuration(selectedSimulation.executionTime) }}
-                  </el-descriptions-item>
-                </el-descriptions>
-              </el-card>
-
-              <el-card class="detail-section" shadow="never" style="margin-bottom: 15px">
-                <template #header>
-                  <div class="section-header">
-                    <i class="el-icon-setting" style="margin-right: 5px; color: #409EFF"></i>
-                    <span style="font-weight: bold;">模拟参数</span>
-                  </div>
-                </template>
-                
-                <div v-if="selectedSimulation.parameters && selectedSimulation.parameters !== '{}'">
-                  <pre class="params-content" style="background: #f5f7fa; padding: 10px; border-radius: 4px;">{{ formatResultSummary(selectedSimulation.parameters) }}</pre>
-                </div>
-                <div v-else class="no-params">
-                  <el-empty description="未配置额外参数" :image-size="50" />
-                </div>
-              </el-card>
-            </div>
-          </el-tab-pane>
-          
-          <!-- 计算结果与文件 Tab -->
-          <el-tab-pane label="计算结果" name="results">
-            <div class="tab-scroll-area">
-              <!-- 结果摘要 - 仅在任务成功完成时显示 -->
-              <el-card
-                class="detail-section"
-                shadow="never"
-                v-if="selectedSimulation.status === 'COMPLETED' && selectedSimulation.resultSummary && selectedSimulation.resultSummary !== '{}'"
-                style="margin-bottom: 15px"
-              >
-                <template #header>
-                  <div class="section-header">
-                    <span style="font-weight: bold;">结果摘要</span>
-                  </div>
-                </template>
-
-                <pre class="result-content" style="background: #f5f7fa; padding: 10px; border-radius: 4px;">{{ formatResultSummary(selectedSimulation.resultSummary) }}</pre>
-              </el-card>
-
-              <!-- 未完成提示 -->
-              <el-card
-                class="detail-section"
-                shadow="never"
-                v-if="selectedSimulation.status !== 'COMPLETED'"
-                style="margin-bottom: 15px"
-              >
-                <el-empty description="任务尚未完成，暂无结果摘要" :image-size="80">
-                  <template #image>
-                    <span style="font-size: 48px; color: #C0C4CC;">📋</span>
-                  </template>
-                </el-empty>
-              </el-card>
-              
-              <el-card class="detail-section" shadow="never" style="margin-bottom: 15px">
-                <template #header>
-                  <div class="section-header">
-                    <i class="el-icon-folder" style="margin-right: 5px; color: #409EFF"></i>
-                    <span style="font-weight: bold;">文件列表</span>
-                  </div>
-                </template>
-                
-                <div v-if="selectedSimulationFiles.length > 0">
-                  <el-table :data="selectedSimulationFiles" size="small" border>
-                    <el-table-column prop="name" label="文件名" />
-                    <el-table-column prop="size" label="大小" width="120">
-                      <template #default="{ row }">
-                        {{ formatFileSize(row.size) }}
-                      </template>
-                    </el-table-column>
-                    <el-table-column label="操作" width="150" align="center">
-                      <template #default="{ row }">
-                        <el-button 
-                          size="small" 
-                          type="primary" 
-                          @click="downloadFile(selectedSimulation.id, row.name)"
-                        >
-                          下载
-                        </el-button>
-                      </template>
-                    </el-table-column>
-                  </el-table>
-                </div>
-                <div v-else class="no-files">
-                  <el-empty description="暂无文件" :image-size="50" />
-                </div>
-              </el-card>
-
-              <el-card 
-                class="detail-section" 
-                shadow="never"
-                v-if="selectedSimulation.status === 'RUNNING'"
-                style="margin-bottom: 15px"
-              >
-                <template #header>
-                  <div class="section-header">
-                    <i class="el-icon-chat-line-round" style="margin-right: 5px; color: #409EFF"></i>
-                    <span style="font-weight: bold;">实时日志</span>
-                    <el-button 
-                      type="text" 
-                      size="small" 
-                      @click="clearLogs"
-                      style="float: right;"
-                    >
-                      清空
-                    </el-button>
-                  </div>
-                </template>
-                
-                <div class="log-container" style="background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 4px; height: 300px; overflow-y: auto;">
-                  <div ref="logContainer" class="log-content">
-                    <div v-for="(log, index) in simulationLogs" :key="index" class="log-line" style="margin-bottom: 5px; font-family: monospace;">
-                      <span class="log-time" style="color: #569cd6; margin-right: 8px;">[{{ log.time }}]</span>
-                      <span class="log-level" :class="`log-${log.level.toLowerCase()}`" style="margin-right: 8px;" :style="{ color: log.level === 'ERROR' ? '#f44336' : (log.level === 'WARN' ? '#ff9800' : '#4caf50') }">
-                        [{{ log.level }}]
-                      </span>
-                      <span class="log-message">{{ log.message }}</span>
-                    </div>
-                  </div>
-                </div>
-              </el-card>
-            </div>
-          </el-tab-pane>
-
-          <!-- 可视化分析 Tab -->
-          <el-tab-pane label="可视化分析" name="visualization" :disabled="selectedSimulation.status !== 'COMPLETED'">
-            <template #label>
-              <span><i class="el-icon-data-analysis"></i> 可视化分析</span>
-            </template>
-            <div class="tab-scroll-area" v-if="activeDetailTab === 'visualization'">
-              <Visualization :simulation-id="selectedSimulation.id" />
-            </div>
-          </el-tab-pane>
-        </el-tabs>
-      </div>
-    </el-dialog>
-
     <!-- 配方详情对话框 -->
     <el-dialog
       v-model="showSystemDialog"
@@ -735,12 +496,12 @@
         <el-descriptions :column="2" border>
           <el-descriptions-item label="配方名称" :span="2">{{ selectedSystem.name }}</el-descriptions-item>
           <el-descriptions-item label="任务描述" :span="2">{{ selectedSystem.taskDescription || '未填写' }}</el-descriptions-item>
-          <el-descriptions-item label="溶剂" :span="2">{{ formatSolventInfo(selectedSystem.solventInfo) }}</el-descriptions-item>
-          <el-descriptions-item label="锂盐" :span="2">{{ formatSaltInfo(selectedSystem.saltInfo) }}</el-descriptions-item>
-          <el-descriptions-item label="添加剂" :span="2">{{ formatAdditiveInfo(selectedSystem.additiveInfo) }}</el-descriptions-item>
+          <el-descriptions-item label="溶剂" :span="2">{{ selectedSystem.solventInfoDisplay }}</el-descriptions-item>
+          <el-descriptions-item label="锂盐" :span="2">{{ selectedSystem.saltInfoDisplay }}</el-descriptions-item>
+          <el-descriptions-item label="添加剂" :span="2">{{ selectedSystem.additiveInfoDisplay }}</el-descriptions-item>
           <el-descriptions-item label="温度">{{ selectedSystem.temperature || '-' }} K</el-descriptions-item>
           <el-descriptions-item label="压力">{{ selectedSystem.pressure || '-' }} bar</el-descriptions-item>
-          <el-descriptions-item label="盒子尺寸" :span="2">{{ formatBoxSize(selectedSystem.boxSize) }}</el-descriptions-item>
+          <el-descriptions-item label="盒子尺寸" :span="2">{{ selectedSystem.boxSizeDisplay }}</el-descriptions-item>
           <el-descriptions-item label="边界条件" :span="2">{{ selectedSystem.boundaryConditions || '-' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间" :span="2">{{ formatDate(selectedSystem.createdAt) }}</el-descriptions-item>
         </el-descriptions>
@@ -802,23 +563,21 @@
 <script>
 import { simulationApi, systemApi, monitorApi, formatHelper } from '../api.js'
 import SimulationForm from '../components/SimulationForm.vue'
-import Visualization from '../components/Visualization.vue'
+import { Simulation } from '../models/Simulation.js'
+import { ElectrolyteFormula } from '../models/ElectrolyteFormula.js'
+import { getMockCompletedSimulation } from '../models/mockData.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 export default {
   name: 'SimulationsView',
   components: {
-    SimulationForm,
-    Visualization
+    SimulationForm
   },
   data() {
     return {
-      activeDetailTab: 'basic',
       // 数据状态
       simulations: [],
       selectedSimulations: [],
-      selectedSimulation: null,
-      selectedSystem: null,
       loading: false,
 
       // 搜索和过滤
@@ -836,17 +595,10 @@ export default {
       
       // 对话框状态
       showCreateDialog: false,
-      showDetailDialog: false,
       showSystemDialog: false,
       showBatchConfirmDialog: false,
       showMonitorDrawer: false,
-      detailFullscreen: false,
-      
-      // 详情相关
-      activeCollapse: ['params'],
-      simulationLogs: [],
-      selectedSimulationFiles: [],
-      logInterval: null,
+      selectedSystem: null,
       
       // 批量操作
       batchConfirmAction: '',
@@ -923,7 +675,6 @@ export default {
   
   beforeUnmount() {
     this.stopAutoRefresh()
-    this.clearLogInterval()
     this.clearMonitorInterval()
   },
   
@@ -933,7 +684,10 @@ export default {
       this.loading = true
       try {
         const response = await simulationApi.getAll()
-        this.simulations = response.data || []
+        const rawData = response.data || []
+        const apiSimulations = rawData.map(item => new Simulation(item))
+        // 始终注入前端mock任务项到列表头部，方便样式开发
+        this.simulations = [getMockCompletedSimulation(), ...apiSimulations]
         this.pagination.total = this.simulations.length
 
         // 为运行中的任务模拟进度
@@ -1002,12 +756,12 @@ export default {
         const createdJob = response.data
 
         // 使用后端返回的数据，添加必要的前端显示字段
-        const newSimulation = {
+        const newSimulation = new Simulation({
           id: createdJob.jobId,
           jobName: createdJob.jobName,
           description: formData.description,
           computingUnit: formData.computingUnit,
-          software: createdJob.softwareName,
+          softwareName: createdJob.softwareName,
           hardwareUsed: createdJob.hardwareUsed,
           status: createdJob.status,
           progress: 0,
@@ -1015,7 +769,7 @@ export default {
           createdAt: createdJob.createTime,
           updatedAt: createdJob.updateTime,
           parameters: createdJob.targetProperties
-        }
+        })
 
         // 添加到列表顶部
         this.simulations.unshift(newSimulation)
@@ -1032,124 +786,8 @@ export default {
     },
     
     // 查看任务详情
-    async viewDetails(simulation) {
-      // 先显示对话框，给用户即时反馈
-      this.selectedSimulation = simulation
-      this.activeDetailTab = 'basic'
-      this.selectedSimulationFiles = []
-      this.showDetailDialog = true
-
-      // 显示加载状态
-      const loadingInstance = ElMessage({
-        message: '正在加载详情...',
-        type: 'info',
-        duration: 0
-      })
-
-      try {
-        // 并行请求：同时获取详情和文件列表
-        const [detailResponse, filesResponse] = await Promise.all([
-          simulationApi.getById(simulation.id),
-          simulationApi.getFiles(simulation.id).catch(() => ({ data: { result_files: [] } }))
-        ])
-
-        this.selectedSimulation = detailResponse.data
-
-        // 处理文件列表
-        if (filesResponse.data && filesResponse.data.result_files) {
-          this.selectedSimulationFiles = filesResponse.data.result_files.map(file => ({
-            name: file,
-            size: Math.floor(Math.random() * 10000000) + 1000000
-          }))
-        } else {
-          this.selectedSimulationFiles = []
-        }
-
-        // 如果是运行中任务，开始获取日志
-        if (simulation.status === 'RUNNING') {
-          this.startLogPolling(simulation.id)
-        }
-      } catch (error) {
-        console.error('获取任务详情失败:', error)
-        ElMessage.error('获取任务详情失败')
-        this.showDetailDialog = false
-      } finally {
-        loadingInstance.close()
-      }
-    },
-    
-    // 加载任务文件列表
-    async loadSimulationFiles(jobId) {
-      try {
-        const response = await simulationApi.getFiles(jobId)
-        if (response.data && response.data.result_files) {
-          this.selectedSimulationFiles = response.data.result_files.map(file => ({
-            name: file,
-            size: Math.floor(Math.random() * 10000000) + 1000000 // 模拟文件大小
-          }))
-        } else {
-          this.selectedSimulationFiles = []
-        }
-      } catch (error) {
-        console.error('加载文件列表失败:', error)
-        this.selectedSimulationFiles = []
-      }
-    },
-    
-    // 开始轮询日志
-    startLogPolling(jobId) {
-      this.clearLogInterval()
-      this.simulationLogs = []
-      
-      // 模拟日志数据
-      const logMessages = [
-        "开始能量最小化...",
-        "能量最小化完成，开始NVT平衡...",
-        "NVT平衡完成，开始NPT平衡...",
-        "NPT平衡完成，开始生产MD...",
-        "正在计算径向分布函数...",
-        "正在计算均方位移..."
-      ]
-      
-      let logIndex = 0
-      this.logInterval = setInterval(() => {
-        if (logIndex < logMessages.length) {
-          const levels = ['INFO', 'WARN', 'ERROR']
-          const level = levels[Math.floor(Math.random() * levels.length)]
-          
-          this.simulationLogs.push({
-            time: new Date().toLocaleTimeString(),
-            level: level,
-            message: logMessages[logIndex]
-          })
-          
-          logIndex++
-          
-          // 滚动到日志底部
-          this.$nextTick(() => {
-            const container = this.$refs.logContainer
-            if (container) {
-              container.scrollTop = container.scrollHeight
-            }
-          })
-        } else {
-          // 所有日志已显示，停止轮询
-          this.clearLogInterval()
-        }
-      }, 2000)
-    },
-    
-    // 清空日志
-    clearLogs() {
-      this.simulationLogs = []
-    },
-    
-    // 清除日志轮询
-    clearLogInterval() {
-      if (this.logInterval) {
-        clearInterval(this.logInterval)
-        this.logInterval = null
-      }
+    viewDetails(simulation) {
+      this.$router.push('/simulations/' + simulation.id)
     },
     
     // 删除模拟任务
@@ -1165,15 +803,10 @@ export default {
             center: true
           }
         )
-        
+
         await simulationApi.delete(simulation.id)
         ElMessage.success('模拟任务删除成功')
-        
-        // 如果当前查看的是被删除的任务，关闭详情对话框
-        if (this.selectedSimulation && this.selectedSimulation.id === simulation.id) {
-          this.showDetailDialog = false
-        }
-        
+
         this.loadSimulations()
         this.loadStats()
       } catch (error) {
@@ -1212,93 +845,11 @@ export default {
       }
     },
     
-    // 重新运行任务
-    async restartSimulation(simulation) {
-      try {
-        await ElMessageBox.confirm(
-          `确定要重新运行模拟任务 "${simulation.jobName}" 吗？`,
-          '重新运行确认',
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消'
-          }
-        )
-        
-        // 这里应该调用重新运行的API
-        // 暂时模拟成功
-        ElMessage.success('已提交重新运行')
-        
-        // 更新状态
-        simulation.status = 'PENDING'
-        simulation.progress = 0
-        
-        this.loadStats()
-      } catch (error) {
-        if (error !== 'cancel') {
-          console.error('重新运行失败:', error)
-          ElMessage.error('重新运行失败')
-        }
-      }
-    },
-    
-    // 复制任务
-    cloneSimulation(simulation) {
-      this.$router.push({
-        path: '/simulations/create',
-        query: { cloneId: simulation.id }
-      })
-      ElMessage.info('已跳转到创建页面，可基于此任务创建新任务')
-    },
-    
-    // 下载结果文件
-    async downloadResults(jobId) {
-      try {
-        const filename = 'results.zip'
-        const response = await simulationApi.downloadFile(jobId, filename)
-        
-        // 创建下载链接
-        const url = window.URL.createObjectURL(new Blob([response.data]))
-        const link = document.createElement('a')
-        link.href = url
-        link.setAttribute('download', `simulation_${jobId}_results.zip`)
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        window.URL.revokeObjectURL(url)
-        
-        ElMessage.success('下载已开始')
-      } catch (error) {
-        console.error('下载结果文件失败:', error)
-        ElMessage.error('下载结果文件失败')
-      }
-    },
-    
-    // 下载单个文件
-    async downloadFile(jobId, filename) {
-      try {
-        const response = await simulationApi.downloadFile(jobId, filename)
-        
-        const url = window.URL.createObjectURL(new Blob([response.data]))
-        const link = document.createElement('a')
-        link.href = url
-        link.setAttribute('download', filename)
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        window.URL.revokeObjectURL(url)
-        
-        ElMessage.success(`文件 ${filename} 下载已开始`)
-      } catch (error) {
-        console.error('下载文件失败:', error)
-        ElMessage.error('下载文件失败')
-      }
-    },
-    
     // 查看系统详情
     async viewSystem(systemId) {
       try {
         const response = await systemApi.getById(systemId)
-        this.selectedSystem = response.data
+        this.selectedSystem = new ElectrolyteFormula(response.data)
         this.showSystemDialog = true
       } catch (error) {
         console.error('获取系统详情失败:', error)
@@ -1413,15 +964,6 @@ export default {
         case 'view':
           this.viewDetails(row)
           break
-        case 'download':
-          this.downloadResults(row.id)
-          break
-        case 'clone':
-          this.cloneSimulation(row)
-          break
-        case 'restart':
-          this.restartSimulation(row)
-          break
         case 'delete':
           this.deleteSimulation(row)
           break
@@ -1454,9 +996,8 @@ export default {
     
     // 开始自动刷新
     startAutoRefresh() {
-      // 每30秒刷新一次
       setInterval(() => {
-        if (!this.showDetailDialog && !this.loading) {
+        if (!this.loading) {
           this.loadSimulations()
           this.loadStats()
         }
@@ -1473,62 +1014,6 @@ export default {
       this.viewMode = mode
       // 保存到本地存储
       localStorage.setItem('simulationViewMode', mode)
-    },
-    
-    // 获取状态类型
-    getStatusType(status) {
-      const types = {
-        PENDING: 'warning',
-        RUNNING: 'primary',
-        COMPLETED: 'success',
-        FAILED: 'danger',
-        CANCELLED: 'info'
-      }
-      return types[status] || 'default'
-    },
-
-    // 获取状态中文文本
-    getStatusText(status) {
-      const texts = {
-        PENDING: '等待中',
-        RUNNING: '运行中',
-        COMPLETED: '已完成',
-        FAILED: '已失败',
-        CANCELLED: '已取消'
-      }
-      return texts[status] || status
-    },
-
-    // 获取状态图标
-    getStatusIcon(status) {
-      const icons = {
-        PENDING: 'el-icon-time',
-        RUNNING: 'el-icon-loading',
-        COMPLETED: 'el-icon-check',
-        FAILED: 'el-icon-close',
-        CANCELLED: 'el-icon-warning-outline'
-      }
-      return icons[status] || 'el-icon-question'
-    },
-
-    // 获取硬件图标
-    getHardwareIcon(hardware) {
-      const icons = {
-        CPU: 'el-icon-cpu',
-        GPU: 'el-icon-video-camera',
-        BOTH: 'el-icon-setting'
-      }
-      return icons[hardware] || 'el-icon-help'
-    },
-
-    // 获取硬件中文文本
-    getHardwareText(hardware) {
-      const texts = {
-        CPU: '仅CPU',
-        GPU: 'GPU加速',
-        BOTH: 'CPU+GPU'
-      }
-      return texts[hardware] || hardware
     },
 
     // 格式化日期
@@ -1568,94 +1053,6 @@ export default {
       } catch (e) {
         return summary
       }
-    },
-
-    // 格式化溶剂信息
-    formatSolventInfo(solventInfo) {
-      if (!solventInfo) return '-'
-      let solvents = solventInfo
-      if (typeof solventInfo === 'string') {
-        if (solventInfo.trim() === '' || solventInfo === 'null') return '-'
-        try {
-          solvents = JSON.parse(solventInfo)
-        } catch (e) {
-          return '-'
-        }
-      }
-      let solventList = null
-      if (Array.isArray(solvents)) {
-        solventList = solvents
-      } else if (solvents && solvents.solvents && Array.isArray(solvents.solvents)) {
-        solventList = solvents.solvents
-      }
-      if (!solventList || solventList.length === 0) return '-'
-
-      const totalRatio = solventList.reduce((sum, s) => sum + (s.mole_ratio || s.moleFraction || 0), 0)
-
-      return solventList.map(s => {
-        let fraction
-        if (s.moleFraction !== undefined) {
-          fraction = (s.moleFraction * 100).toFixed(0)
-        } else if (s.mole_ratio !== undefined && totalRatio > 0) {
-          fraction = ((s.mole_ratio / totalRatio) * 100).toFixed(0)
-        } else {
-          fraction = '?'
-        }
-        return `${s.name || '?'} ${fraction}%`
-      }).join(' / ')
-    },
-
-    // 格式化锂盐信息
-    formatSaltInfo(saltInfo) {
-      if (!saltInfo) return '-'
-      let salts = saltInfo
-      if (typeof saltInfo === 'string') {
-        if (saltInfo.trim() === '' || saltInfo === 'null') return '-'
-        try {
-          salts = JSON.parse(saltInfo)
-        } catch (e) {
-          return '-'
-        }
-      }
-      if (!Array.isArray(salts) || salts.length === 0) return '-'
-      return salts.map(s => {
-        const conc = s.concentration || s.concentration_mol_L || '?'
-        return `${s.name || '?'} ${conc}M`
-      }).join(', ')
-    },
-
-    // 格式化添加剂信息
-    formatAdditiveInfo(additiveInfo) {
-      if (!additiveInfo) return '无'
-      let additives = additiveInfo
-      if (typeof additiveInfo === 'string') {
-        if (additiveInfo.trim() === '' || additiveInfo === 'null' || additiveInfo === '[]') return '无'
-        try {
-          additives = JSON.parse(additiveInfo)
-        } catch (e) {
-          return '无'
-        }
-      }
-      if (!Array.isArray(additives) || additives.length === 0) return '无'
-      return additives.map(a => {
-        const conc = a.concentration || a.mass_fraction || '?'
-        return `${a.name || '?'} ${conc}${a.concentration ? 'M' : ''}`
-      }).join(', ')
-    },
-
-    // 格式化盒子尺寸
-    formatBoxSize(boxSize) {
-      if (!boxSize) return '-'
-      let box = boxSize
-      if (typeof boxSize === 'string') {
-        try {
-          box = JSON.parse(boxSize)
-        } catch (e) {
-          return '-'
-        }
-      }
-      if (!box.x && !box.y && !box.z) return '-'
-      return `${box.x || '?'} × ${box.y || '?'} × ${box.z || '?'} Å`
     },
 
     // 获取进度条颜色
@@ -2118,111 +1515,6 @@ export default {
   padding: 20px 0;
   background: white;
   border-radius: 0 0 8px 8px;
-}
-
-/* 详情对话框样式 */
-.detail-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.detail-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-}
-
-.detail-section {
-  border: none;
-  border-radius: 8px;
-}
-
-.tab-scroll-area {
-  max-height: 60vh;
-  overflow-y: auto;
-  padding-right: 10px;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.section-header i {
-  color: #409EFF;
-}
-
-.params-content,
-.result-content {
-  margin: 0;
-  padding: 15px;
-  background: #fafafa;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  max-height: 300px;
-  overflow: auto;
-}
-
-.no-params,
-.no-files {
-  padding: 20px;
-  text-align: center;
-  color: #909399;
-}
-
-/* 日志容器 */
-.log-container {
-  height: 300px;
-  overflow: auto;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  background: #1e1e1e;
-  padding: 10px;
-}
-
-.log-content {
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.log-line {
-  margin-bottom: 4px;
-  display: flex;
-  gap: 10px;
-  color: #d4d4d4;
-}
-
-.log-time {
-  color: #6a9955;
-  min-width: 70px;
-}
-
-.log-level {
-  min-width: 50px;
-}
-
-.log-info {
-  color: #569cd6;
-}
-
-.log-warn {
-  color: #d7ba7d;
-}
-
-.log-error {
-  color: #f44747;
-}
-
-.log-message {
-  flex: 1;
 }
 
 /* 批量确认对话框 */
