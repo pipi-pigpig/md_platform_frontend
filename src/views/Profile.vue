@@ -1,6 +1,5 @@
 <template>
   <div class="profile">
-    <h2>个人信息</h2>
     <p style="color: #909399; margin-bottom: 20px;">查看和管理您的个人基本信息</p>
 
     <!-- 基本信息卡片 -->
@@ -170,13 +169,7 @@ export default {
     const loadProfile = async () => {
       loading.value = true
       try {
-        const userStr = localStorage.getItem('user')
-        if (!userStr) return
-        const storedUser = JSON.parse(userStr)
-        const userId = storedUser.userId
-        if (!userId) return
-
-        const response = await userApi.getById(userId)
+        const response = await userApi.getMe()
         const data = response.data
         Object.assign(userInfo, {
           userId: data.userId,
@@ -224,35 +217,41 @@ export default {
 
       saving.value = true
       try {
-        const response = await userApi.update(userInfo.userId, {
+        const response = await userApi.updateMe({
           realName: profileForm.realName,
           organization: profileForm.organization,
           phone: profileForm.phone
         })
 
-        if (response.data) {
-          const updated = response.data
+        if (response.data && response.data.success) {
+          // 后端响应只返回 {success, message}，用表单值更新本地状态
           Object.assign(userInfo, {
-            realName: updated.realName,
-            organization: updated.organization,
-            phone: updated.phone
+            realName: profileForm.realName,
+            organization: profileForm.organization,
+            phone: profileForm.phone
           })
 
           const userStr = localStorage.getItem('user')
           if (userStr) {
             const storedUser = JSON.parse(userStr)
-            storedUser.realName = updated.realName
-            storedUser.organization = updated.organization
-            storedUser.phone = updated.phone
+            storedUser.realName = profileForm.realName
+            storedUser.organization = profileForm.organization
+            storedUser.phone = profileForm.phone
             localStorage.setItem('user', JSON.stringify(storedUser))
           }
 
           isEditing.value = false
           ElMessage.success('个人信息更新成功')
+        } else {
+          ElMessage.error(response.data?.message || '更新个人信息失败')
         }
       } catch (error) {
         if (!error.silent) {
-          ElMessage.error('更新个人信息失败')
+          if (error.response?.data?.message) {
+            ElMessage.error(error.response.data.message)
+          } else {
+            ElMessage.error('更新个人信息失败')
+          }
         }
       } finally {
         saving.value = false

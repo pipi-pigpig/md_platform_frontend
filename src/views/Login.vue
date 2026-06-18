@@ -324,8 +324,8 @@ export default {
       try {
         const response = await authApi.login(loginForm)
         if (response.data.success) {
-          localStorage.setItem('token', response.data.token)
-          localStorage.setItem('user', JSON.stringify(response.data.user))
+          localStorage.setItem('token', response.data.accessToken)
+          localStorage.setItem('user', JSON.stringify(response.data.userInfo))
 
           ElMessage.success('登录成功')
           router.push('/dashboard')

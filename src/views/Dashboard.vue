@@ -1,6 +1,5 @@
 <template>
   <div class="dashboard">
-    <h2>控制台</h2>
     <p style="color: #909399; margin-bottom: 20px;">查看您的模拟任务概览</p>
 
     <!-- 统计卡片 -->

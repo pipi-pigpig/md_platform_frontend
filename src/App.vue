@@ -6,9 +6,9 @@
     <!-- 其他页面带侧边栏布局 -->
     <el-container v-else style="height: 100vh;">
       <!-- 侧边栏 -->
-      <el-aside width="200px" style="background-color: #545c64; color: white;">
-        <div style="padding: 20px; font-size: 20px; font-weight: bold;">
-          <i class="el-icon-cpu"></i> 分子模拟平台
+      <el-aside width="240px" style="background-color: #545c64; color: white;">
+        <div style="padding: 20px; font-size: 20px; font-weight: bold; white-space: nowrap;">
+          <i class="el-icon-cpu"></i> 电解液配方计算平台
         </div>
         <el-menu
           background-color="#545c64"
@@ -36,7 +36,7 @@
       <el-container>
         <el-header style="background: white; border-bottom: 1px solid #e4e7ed;">
           <div style="display: flex; justify-content: space-between; align-items: center; height: 100%;">
-            <h2 style="margin: 0;">电解液分子动力学模拟平台</h2>
+            <h2 style="margin: 0;">{{ pageTitle }}</h2>
             <div style="display: flex; align-items: center; gap: 15px;">
               <el-dropdown trigger="hover" @command="handleCommand">
                 <div class="user-dropdown-trigger">
@@ -80,6 +80,17 @@ export default {
 
     const currentPath = computed(() => route.path)
 
+    // 根据路由动态显示页面名称
+    const pageTitle = computed(() => {
+      const titles = {
+        '/dashboard': '控制台',
+        '/simulations': '分子动力学模拟任务管理',
+        '/systems': '电解液配方管理',
+        '/profile': '个人信息'
+      }
+      return titles[route.path] || '电解液配方计算平台'
+    })
+
     const userName = computed(() => {
       const user = localStorage.getItem('user')
       if (user) {
@@ -113,6 +124,7 @@ export default {
     return {
       isPublicPage,
       currentPath,
+      pageTitle,
       userName,
       handleLogout,
       handleCommand

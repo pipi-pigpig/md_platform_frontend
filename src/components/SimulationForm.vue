@@ -503,7 +503,8 @@ export default {
           // 调用 API 获取完整配方详情
           try {
             const response = await systemApi.getById(newVal)
-            const system = response.data
+            // 后端响应结构: { success, data: ElectrolyteSystemResponse }
+            const system = response.data?.data
             if (system) {
               // 从完整的配方数据填充表单参数
               this.fillFormFromSystem(system)
@@ -548,8 +549,17 @@ export default {
     // 加载配方列表
     async loadSystems() {
       try {
-        const response = await systemApi.getAll()
-        this.systems = response.data || []
+        const response = await systemApi.list({ page: 1, pageSize: 100 })
+        // 后端响应结构: { success, data: { total, page, pageSize, list: [...] } }
+        // list 仅含精简字段，需补全详情用于表单填充
+        const list = response.data?.data?.list || []
+        const detailResults = await Promise.all(
+          list.map(item => systemApi.getById(item.id).catch(() => null))
+        )
+        this.systems = list.map((item, index) => {
+          const detail = detailResults[index]?.data?.data
+          return detail || item
+        })
       } catch (error) {
         console.error('加载配方列表失败:', error)
         this.$message.error('加载配方列表失败')
@@ -614,8 +624,12 @@ export default {
 
       try {
         const response = await systemApi.create(this.newSystem)
-        this.systems.push(response.data)
-        this.form.systemId = response.data.id
+        // 后端响应结构: { success, message, data: ElectrolyteSystemResponse }
+        const created = response.data?.data
+        if (created) {
+          this.systems.push(created)
+          this.form.systemId = created.id
+        }
 
         this.showCreateSystemDialog = false
         this.$message.success('电解液配方保存成功')

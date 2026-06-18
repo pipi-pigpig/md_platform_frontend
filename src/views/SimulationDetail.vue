@@ -36,7 +36,7 @@
             <template #header>
               <div class="section-header">
                 <i class="el-icon-info" style="margin-right: 5px; color: #409EFF"></i>
-                <span style="font-weight: bold;">基础信息</span>
+                <span style="font-weight: bold;">任务概况</span>
               </div>
             </template>
 
@@ -102,15 +102,23 @@
             <template #header>
               <div class="section-header">
                 <i class="el-icon-setting" style="margin-right: 5px; color: #409EFF"></i>
-                <span style="font-weight: bold;">模拟参数</span>
+                <span style="font-weight: bold;">输入参数</span>
               </div>
             </template>
 
-            <div v-if="simulation.parameters && simulation.parameters !== '{}'">
-              <pre class="params-content">{{ formatResultSummary(simulation.parameters) }}</pre>
+            <div v-if="parsedParameters && Object.keys(parsedParameters).length > 0">
+              <el-descriptions :column="2" border size="default">
+                <el-descriptions-item
+                  v-for="item in parametersList"
+                  :key="item.key"
+                  :label="item.label"
+                >
+                  {{ item.value }}<span class="field-unit" v-if="item.unit">{{ item.unit }}</span>
+                </el-descriptions-item>
+              </el-descriptions>
             </div>
             <div v-else>
-              <el-empty description="未配置额外参数" :image-size="50" />
+              <el-empty description="未配置输入参数" :image-size="50" />
             </div>
           </el-card>
         </el-tab-pane>
@@ -156,7 +164,7 @@
                   <span style="font-weight: bold;">{{ group.label }}</span>
                 </div>
               </template>
-              <el-descriptions :column="3" border size="small">
+              <el-descriptions :column="2" border size="default">
                 <el-descriptions-item
                   v-for="field in group.fields"
                   :key="field.key"
@@ -201,27 +209,19 @@
 
         <!-- 输出文件 Tab -->
         <el-tab-pane label="输出文件" name="files">
-          <div v-if="files.length > 0">
-            <el-table :data="files" border style="width: 100%;">
-              <el-table-column prop="name" label="文件名" />
-              <el-table-column prop="size" label="大小" width="120">
-                <template #default="{ row }">
-                  {{ formatFileSize(row.size) }}
-                </template>
+          <el-card v-if="files.length > 0" class="detail-section files-card" shadow="never">
+            <el-table :data="files" border style="width: 100%" class="files-table">
+              <el-table-column prop="name" label="文件名" min-width="200" />
+              <el-table-column label="大小" min-width="120">
+                <template #default="{ row }">{{ formatFileSize(row.size) }}</template>
               </el-table-column>
-              <el-table-column label="操作" width="150" align="center">
+              <el-table-column label="操作" width="100" align="center">
                 <template #default="{ row }">
-                  <el-button
-                    size="small"
-                    type="primary"
-                    @click="downloadFile(row.name)"
-                  >
-                    下载
-                  </el-button>
+                  <el-button size="small" type="primary" @click="downloadFile(row.name)">下载</el-button>
                 </template>
               </el-table-column>
             </el-table>
-          </div>
+          </el-card>
           <el-empty v-else description="暂无结果文件" :image-size="80" />
         </el-tab-pane>
 
@@ -252,7 +252,7 @@
       align-center
     >
       <div v-if="selectedSystem" class="system-detail">
-        <el-descriptions :column="2" border>
+        <el-descriptions :column="2" border size="default">
           <el-descriptions-item label="配方名称" :span="2">{{ selectedSystem.name }}</el-descriptions-item>
           <el-descriptions-item label="任务描述" :span="2">{{ selectedSystem.taskDescription || '未填写' }}</el-descriptions-item>
           <el-descriptions-item label="溶剂">{{ selectedSystem.solventInfoDisplay }}</el-descriptions-item>
@@ -294,6 +294,49 @@ export default {
     }
   },
   computed: {
+    parsedParameters() {
+      if (!this.simulation?.parameters || this.simulation.parameters === '{}') return null
+      try {
+        return JSON.parse(this.simulation.parameters)
+      } catch {
+        return null
+      }
+    },
+    parametersList() {
+      const params = this.parsedParameters
+      if (!params) return []
+      const labelMap = {
+        ensemble: { label: '系综类型', unit: '' },
+        temperature: { label: '温度', unit: 'K' },
+        pressure: { label: '压强', unit: 'bar' },
+        timestep: { label: '时间步长', unit: 'fs' },
+        totalSteps: { label: '总步数', unit: '' },
+        outputInterval: { label: '输出间隔', unit: '步' },
+        thermostat: { label: '控温器', unit: '' },
+        barostat: { label: '控压器', unit: '' },
+        cutoffDistance: { label: '截断距离', unit: 'Å' },
+        longRangeSolver: { label: '长程求解器', unit: '' },
+        bondStyle: { label: '键势函数', unit: '' },
+        angleStyle: { label: '角势函数', unit: '' },
+        dihedralStyle: { label: '二面角势函数', unit: '' },
+        improperStyle: { label: '非正常二面角势函数', unit: '' },
+        pairStyle: { label: '对势函数', unit: '' },
+        kspaceStyle: { label: 'K空间求解', unit: '' },
+        kspaceAccuracy: { label: 'K空间精度', unit: '' },
+        neighborSkin: { label: '邻域皮肤距离', unit: 'Å' },
+        neighborUpdateFrequency: { label: '邻域更新频率', unit: '' }
+      }
+      const valueMap = {
+        ensemble: { NVT: 'NVT (正则系综)', NPT: 'NPT (等温等压系综)', NVE: 'NVE (微正则系综)' },
+        thermostat: { 'Nose-Hoover': 'Nose-Hoover', 'Berendsen': 'Berendsen', 'Langevin': 'Langevin' },
+        longRangeSolver: { PPPM: 'PPPM', Ewald: 'Ewald' }
+      }
+      return Object.entries(params).map(([key, value]) => {
+        const meta = labelMap[key] || { label: key, unit: '' }
+        const displayValue = valueMap[key]?.[value] || value
+        return { key, label: meta.label, value: String(displayValue), unit: meta.unit }
+      })
+    },
     keyMetrics() {
       return [
         { label: '密度', value: '1.048', unit: 'g/cm³', color: '#409EFF' },
@@ -601,7 +644,7 @@ export default {
     async viewSystem(systemId) {
       try {
         const response = await systemApi.getById(systemId)
-        this.selectedSystem = new ElectrolyteFormula(response.data)
+        this.selectedSystem = new ElectrolyteFormula(response.data?.data)
         this.showSystemDialog = true
       } catch (error) {
         console.error('获取系统详情失败:', error)
@@ -619,14 +662,6 @@ export default {
 
     formatFileSize(bytes) {
       return formatHelper.formatFileSize(bytes)
-    },
-
-    formatResultSummary(summary) {
-      try {
-        return JSON.stringify(JSON.parse(summary), null, 2)
-      } catch {
-        return summary
-      }
     }
   }
 }
@@ -667,12 +702,41 @@ export default {
 
 .detail-body {
   flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-body :deep(.el-tabs) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detail-body :deep(.el-tabs__content) {
+  flex: 1;
   overflow-y: auto;
+  padding: 15px;
 }
 
 .detail-section {
   border: none;
   border-radius: 8px;
+}
+
+.files-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+.files-table :deep(.el-table__header th) {
+  background-color: #f5f7fa;
+  color: #606266;
+  font-weight: 600;
+}
+
+.files-table :deep(.el-table__body td) {
+  background-color: #fff;
 }
 
 .section-header {
@@ -681,20 +745,6 @@ export default {
   gap: 8px;
   font-size: 16px;
   font-weight: 500;
-}
-
-.params-content {
-  margin: 0;
-  padding: 15px;
-  background: #fafafa;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 500px;
-  overflow-y: auto;
 }
 
 /* 计算结果 - 概览条 */
@@ -741,9 +791,15 @@ export default {
   margin-top: 4px;
 }
 
-/* 计算结果 - 分组卡片 */
-.result-group-card :deep(.el-descriptions__label) {
+/* 统一所有 el-descriptions 风格 */
+:deep(.el-descriptions__body) {
+  table-layout: fixed;
+}
+:deep(.el-descriptions__label) {
   width: 140px;
+}
+:deep(.el-descriptions__content) {
+  min-width: 120px;
 }
 
 .field-unit {

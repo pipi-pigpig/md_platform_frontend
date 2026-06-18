@@ -190,7 +190,7 @@ export default {
       try {
         const response = await authApi.resetPassword({
           token: token.value,
-          password: form.password
+          newPassword: form.password
         })
         if (response.data.success) {
           resetSuccess.value = true

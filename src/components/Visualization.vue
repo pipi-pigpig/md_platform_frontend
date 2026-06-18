@@ -51,7 +51,7 @@
           <i class="el-icon-view" style="color: #409EFF;"></i>
           <span>电解液溶液全景</span>
           <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
-            <el-radio-group v-model="displayStyle" size="small" @change="switchDisplayStyle">
+            <el-radio-group v-model="displayStyle" size="small" @change="(v) => switchDisplayStyle(v, 0)">
               <el-radio-button label="ballStick">球棍模型</el-radio-button>
               <el-radio-button label="spaceFilling">空间填充</el-radio-button>
             </el-radio-group>
@@ -75,6 +75,12 @@
             <div class="card-header">
               <i class="legend-dot" style="background:#b07cc9; width:10px; height:10px; flex-shrink:0;"></i>
               <span>Li⁺ (锂离子)</span>
+              <div style="margin-left: auto;">
+                <el-radio-group v-model="displayStyleLi" size="small" @change="(v) => switchDisplayStyle(v, 1)">
+                  <el-radio-button label="ballStick">球棍模型</el-radio-button>
+                  <el-radio-button label="spaceFilling">空间填充</el-radio-button>
+                </el-radio-group>
+              </div>
             </div>
           </template>
           <div ref="molLi" class="mol-item"></div>
@@ -86,6 +92,12 @@
             <div class="card-header">
               <i class="legend-dot" style="background:#ff9933; width:10px; height:10px; flex-shrink:0;"></i>
               <span>PF₆⁻ (六氟磷酸根)</span>
+              <div style="margin-left: auto;">
+                <el-radio-group v-model="displayStylePF6" size="small" @change="(v) => switchDisplayStyle(v, 2)">
+                  <el-radio-button label="ballStick">球棍模型</el-radio-button>
+                  <el-radio-button label="spaceFilling">空间填充</el-radio-button>
+                </el-radio-group>
+              </div>
             </div>
           </template>
           <div ref="molPF6" class="mol-item"></div>
@@ -97,6 +109,12 @@
             <div class="card-header">
               <i class="legend-dot" style="background:#5470C6; width:10px; height:10px; flex-shrink:0;"></i>
               <span>EC (碳酸乙烯酯)</span>
+              <div style="margin-left: auto;">
+                <el-radio-group v-model="displayStyleEC" size="small" @change="(v) => switchDisplayStyle(v, 3)">
+                  <el-radio-button label="ballStick">球棍模型</el-radio-button>
+                  <el-radio-button label="spaceFilling">空间填充</el-radio-button>
+                </el-radio-group>
+              </div>
             </div>
           </template>
           <div ref="molEC" class="mol-item"></div>
@@ -108,6 +126,12 @@
             <div class="card-header">
               <i class="legend-dot" style="background:#3BA272; width:10px; height:10px; flex-shrink:0;"></i>
               <span>DMC (碳酸二甲酯)</span>
+              <div style="margin-left: auto;">
+                <el-radio-group v-model="displayStyleDMC" size="small" @change="(v) => switchDisplayStyle(v, 4)">
+                  <el-radio-button label="ballStick">球棍模型</el-radio-button>
+                  <el-radio-button label="spaceFilling">空间填充</el-radio-button>
+                </el-radio-group>
+              </div>
             </div>
           </template>
           <div ref="molDMC" class="mol-item"></div>
@@ -137,6 +161,10 @@ const molPF6 = ref(null)
 const molEC = ref(null)
 const molDMC = ref(null)
 const displayStyle = ref('ballStick')
+const displayStyleLi = ref('ballStick')
+const displayStylePF6 = ref('ballStick')
+const displayStyleEC = ref('ballStick')
+const displayStyleDMC = ref('ballStick')
 
 // 各图表容器 ref
 const chartTemperature = ref(null)
@@ -597,7 +625,7 @@ function initMolScene(containerRef, buildMolecules, cameraPos = [6, 4, 6]) {
   controls.enableDamping = true
   controls.dampingFactor = 0.05
   controls.autoRotate = true
-  controls.autoRotateSpeed = 1.5
+  controls.autoRotateSpeed = 0.6
   controls.target.set(0, 0, 0)
   controls.minDistance = 3
   controls.maxDistance = 20
@@ -808,11 +836,12 @@ const initDMC = () => {
   if (s) scenes.push(s)
 }
 
-// 切换球棍/空间填充
-const switchDisplayStyle = (style) => {
+// 切换球棍/空间填充（sceneIndex 可选，不传则控制全景）
+const switchDisplayStyle = (style, sceneIndex) => {
   const isSpaceFilling = style === 'spaceFilling'
   const scale = isSpaceFilling ? 2.2 : 1.0
-  scenes.forEach(s => {
+  const targets = sceneIndex !== undefined ? [scenes[sceneIndex]] : scenes
+  targets.forEach(s => {
     if (!s || !s.molGroup) return
     s.molGroup.children.forEach((child) => {
       if (child instanceof THREE.Mesh && child.geometry?.type === 'SphereGeometry') {
@@ -881,6 +910,7 @@ onUnmounted(() => {
 .dashboard-card {
   display: flex;
   flex-direction: column;
+  border-radius: 8px;
 }
 
 .chart-item {

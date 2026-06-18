@@ -1,12 +1,5 @@
 <template>
   <div class="systems">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h2>电解液配方管理</h2>
-      <el-button type="primary" @click="openCreateDialog">
-        新建配方
-      </el-button>
-    </div>
-
     <!-- 搜索筛选栏 -->
     <div class="filter-bar">
       <el-input
@@ -15,7 +8,8 @@
         prefix-icon="el-icon-search"
         class="search-input"
         clearable
-        @input="handleFilterChange"
+        @keyup.enter="doSearch"
+        @clear="doSearch"
       />
 
       <el-select
@@ -46,6 +40,9 @@
       </el-select>
 
       <div class="spacer"></div>
+      <el-button type="primary" @click="openCreateDialog">
+        新建配方
+      </el-button>
     </div>
 
     <!-- 创建/编辑配方对话框 -->
@@ -195,37 +192,159 @@
         </div>
       </template>
 
-      <el-table :data="filteredSystems" v-loading="loading">
-        <el-table-column prop="name" label="配方名称" min-width="240" show-overflow-tooltip />
-        <el-table-column label="溶剂" min-width="120">
-          <template #default="scope">
-            {{ scope.row.solventInfoDisplay }}
-          </template>
-        </el-table-column>
-        <el-table-column label="锂盐" min-width="100">
-          <template #default="scope">
-            {{ scope.row.saltInfoDisplay }}
-          </template>
-        </el-table-column>
-        <el-table-column label="温度(K)" width="85" align="center">
-          <template #default="scope">
-            {{ scope.row.temperature || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="155">
-          <template #default="scope">
-            {{ formatDate(scope.row.createdAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="scope">
-            <div class="action-buttons">
-              <el-button type="primary" size="small" @click="editSystem(scope.row)">修改</el-button>
-              <el-button type="danger" size="small" @click="deleteSystem(scope.row)">删除</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div v-loading="loading">
+        <el-empty v-if="filteredSystems.length === 0" description="暂无配方数据" />
+
+        <el-table
+          v-else
+          ref="formulaTableRef"
+          :data="filteredSystems"
+          stripe
+          style="width: 100%"
+          row-key="id"
+          :default-sort="{ prop: 'createdAt', order: 'descending' }"
+          @sort-change="handleSortChange"
+          @row-click="handleRowClick"
+          @expand-change="handleExpandChange"
+        >
+          <!-- 展开列：点击行首箭头展开详情 -->
+          <el-table-column type="expand">
+            <template #default="{ row }">
+              <div class="expand-wrapper" :data-row-id="row.id" @click.stop>
+                <div class="expand-body">
+                <!-- 基本信息 -->
+                <div class="detail-section">
+                  <div class="detail-title">基本信息</div>
+                  <el-descriptions :column="2" border size="small">
+                    <el-descriptions-item label="配方名称">{{ row.name }}</el-descriptions-item>
+                    <el-descriptions-item label="总原子数">{{ row.totalAtomCount ?? '-' }}</el-descriptions-item>
+                    <el-descriptions-item label="任务说明">{{ row.taskDescription || '-' }}</el-descriptions-item>
+                    <el-descriptions-item label="边界条件">{{ row.boundaryConditions || '-' }}</el-descriptions-item>
+                    <el-descriptions-item label="创建时间">{{ formatDate(row.createdAt) }}</el-descriptions-item>
+                    <el-descriptions-item label="更新时间">{{ formatDate(row.updatedAt) }}</el-descriptions-item>
+                  </el-descriptions>
+                </div>
+
+                <!-- 溶剂配置 -->
+                <div class="detail-section">
+                  <div class="detail-title">溶剂配置</div>
+                  <div v-if="row.solvents.length === 0" class="detail-empty">无溶剂数据</div>
+                  <div v-else class="detail-list">
+                    <div v-for="(s, idx) in row.solvents" :key="idx" class="detail-list-item">
+                      <span class="item-name">{{ s.name }}</span>
+                      <span class="item-meta">摩尔分数 {{ (s.moleFraction * 100).toFixed(1) }}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 锂盐配置 -->
+                <div class="detail-section">
+                  <div class="detail-title">锂盐配置</div>
+                  <div v-if="row.salts.length === 0" class="detail-empty">无锂盐</div>
+                  <div v-else class="detail-list">
+                    <div v-for="(s, idx) in row.salts" :key="idx" class="detail-list-item">
+                      <span class="item-name">{{ s.name }}</span>
+                      <span class="item-meta">{{ s.cation }} / {{ s.anion }} · {{ s.concentration }} mol/L</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 添加剂 -->
+                <div class="detail-section">
+                  <div class="detail-title">添加剂</div>
+                  <div v-if="row.additives.length === 0" class="detail-empty muted">无</div>
+                  <div v-else class="detail-list">
+                    <div v-for="(a, idx) in row.additives" :key="idx" class="detail-list-item">
+                      <span class="item-name">{{ a.name }}</span>
+                      <span class="item-meta">{{ a.concentration }} mol/L</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 模拟参数 -->
+                <div class="detail-section">
+                  <div class="detail-title">模拟参数</div>
+                  <el-descriptions :column="2" border size="small">
+                    <el-descriptions-item label="温度">{{ row.temperature || '-' }} K</el-descriptions-item>
+                    <el-descriptions-item label="压强">{{ row.pressure || '-' }} bar</el-descriptions-item>
+                    <el-descriptions-item label="盒子尺寸">
+                      {{ row.boxSize?.x ?? '-' }} × {{ row.boxSize?.y ?? '-' }} × {{ row.boxSize?.z ?? '-' }} Å
+                    </el-descriptions-item>
+                    <el-descriptions-item label="是否模板">
+                      <el-tag :type="row.isPublicTemplate ? 'success' : 'info'" size="small">
+                        {{ row.isPublicTemplate ? '公开模板' : '私有配方' }}
+                      </el-tag>
+                    </el-descriptions-item>
+                  </el-descriptions>
+                </div>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+
+          <!-- 配方名称列（可排序） -->
+          <el-table-column prop="name" label="配方名称" min-width="200" sortable="custom" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="cell-name">{{ row.name }}</span>
+              <el-tag v-if="row.isPublicTemplate" type="success" size="small" style="margin-left: 6px;">模板</el-tag>
+            </template>
+          </el-table-column>
+
+          <!-- 溶剂列 -->
+          <el-table-column label="溶剂" min-width="140">
+            <template #default="{ row }">
+              {{ row.solventInfoDisplay }}
+            </template>
+          </el-table-column>
+
+          <!-- 锂盐列 -->
+          <el-table-column label="锂盐" min-width="120">
+            <template #default="{ row }">
+              {{ row.saltInfoDisplay }}
+            </template>
+          </el-table-column>
+
+          <!-- 温度列 -->
+          <el-table-column label="温度(K)" width="100" align="center">
+            <template #default="{ row }">
+              {{ row.temperature || '-' }}
+            </template>
+          </el-table-column>
+
+          <!-- 创建时间列（可排序） -->
+          <el-table-column prop="createdAt" label="创建时间" min-width="160" sortable="custom">
+            <template #default="{ row }">
+              {{ formatDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+
+          <!-- 操作列 -->
+          <el-table-column label="操作" width="300" fixed="right" align="center">
+            <template #default="{ row }">
+              <div class="action-buttons" @click.stop>
+                <el-button type="primary" size="small" @click="editSystem(row)">修改</el-button>
+                <el-button type="success" size="small" @click="saveAsTemplate(row)">存为模板</el-button>
+                <el-button type="warning" size="small" @click="copyFromTemplate(row)">复用</el-button>
+                <el-button type="danger" size="small" @click="deleteSystem(row)">删除</el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- 分页 -->
+        <div class="pagination-container" v-if="total > 0">
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="total"
+            layout="total, sizes, prev, pager, next, jumper"
+            background
+            @size-change="loadSystems"
+            @current-change="loadSystems"
+          />
+        </div>
+      </div>
     </el-card>
   </div>
 </template>
@@ -242,11 +361,14 @@ export default {
       systems: [],
       showFormDialog: false,
       isEditing: false,
-      showSolventSumError: false,
       searchQuery: '',
       saltFilter: '',
       solventFilter: '',
-      formData: ElectrolyteFormula.defaultFormData()
+      formData: ElectrolyteFormula.defaultFormData(),
+      // 分页参数
+      currentPage: 1,
+      pageSize: 10,
+      total: 0
     }
   },
   computed: {
@@ -254,14 +376,13 @@ export default {
       const solvents = this.formData?.solventInfo?.solvents || []
       return solvents.reduce((sum, s) => sum + (s.moleFraction || 0), 0)
     },
+    // 摩尔分数之和偏离 1.0 时自动显示错误提示（响应式计算属性）
+    showSolventSumError() {
+      return this.solventSum > 0 && Math.abs(this.solventSum - 1.0) > 0.001
+    },
+    // 前端补充筛选：在已加载的分页数据中按盐/溶剂过滤（排序由 el-table 内置 sort-change 处理）
     filteredSystems() {
       return this.systems.filter(system => {
-        if (this.searchQuery) {
-          const query = this.searchQuery.toLowerCase()
-          if (!system.name.toLowerCase().includes(query)) {
-            return false
-          }
-        }
         if (this.saltFilter) {
           let saltNames = []
           if (Array.isArray(system.saltInfo)) {
@@ -292,8 +413,14 @@ export default {
   methods: {
     openCreateDialog() {
       this.isEditing = false
-      this.formData = ElectrolyteFormula.defaultFormData()
-      this.showSolventSumError = false
+      // 用 Object.assign 保留原响应式对象，避免整体替换导致 v-model 失效
+      const fresh = ElectrolyteFormula.defaultFormData()
+      Object.assign(this.formData, fresh)
+      // 嵌套对象需要单独替换，否则引用仍指向旧对象
+      this.formData.solventInfo = { solvents: fresh.solventInfo.solvents.map(s => ({ ...s })) }
+      this.formData.saltInfo = fresh.saltInfo.map(s => ({ ...s }))
+      this.formData.additiveInfo = []
+      this.formData.boxSize = { ...fresh.boxSize }
       this.showFormDialog = true
     },
 
@@ -336,13 +463,27 @@ export default {
       this.formData.additiveInfo.splice(index, 1)
     },
 
-    async loadSystems() {
+    async loadSystems(page) {
+      if (page) this.currentPage = page
       this.loading = true
       try {
-        const response = await systemApi.getAll()
-        this.systems = (response.data || []).map(item => new ElectrolyteFormula(item))
+        const response = await systemApi.list({
+          keyword: this.searchQuery || undefined,
+          page: this.currentPage,
+          pageSize: this.pageSize
+        })
+        const pageData = response.data?.data || {}
+        this.total = pageData.total || 0
+        const list = pageData.list || []
+        // 列表响应不含 solventInfo/saltInfo，对每条调 getById 补全详情
+        const detailResults = await Promise.all(
+          list.map(item => systemApi.getById(item.id).catch(() => null))
+        )
+        this.systems = list.map((item, index) => {
+          const detail = detailResults[index]?.data?.data
+          return new ElectrolyteFormula(detail || item)
+        })
       } catch (error) {
-        // 如果是静默错误（请求被取消），不显示提示
         if (error.silent) {
           return
         }
@@ -372,51 +513,64 @@ export default {
 
       const solventSum = this.solventSum
       if (Math.abs(solventSum - 1.0) > 0.001) {
-        this.showSolventSumError = true
         this.$message.error(`溶剂摩尔分数之和必须等于 1.0（当前: ${solventSum.toFixed(2)}）`)
         return
       }
-      this.showSolventSumError = false
 
       try {
         if (this.isEditing) {
-          await systemApi.update(this.formData.id, this.formData)
-          this.$message.success('配方更新成功')
+          const response = await systemApi.update(this.formData.id, this.formData)
+          if (response.data.success) {
+            this.$message.success('配方更新成功')
+          } else {
+            this.$message.error(response.data.message || '配方更新失败')
+            return
+          }
         } else {
-          await systemApi.create(this.formData)
-          this.$message.success('配方创建成功')
+          const response = await systemApi.create(this.formData)
+          if (response.data.success) {
+            this.$message.success('配方创建成功')
+          } else {
+            this.$message.error(response.data.message || '配方创建失败')
+            return
+          }
         }
         this.showFormDialog = false
         this.loadSystems()
       } catch (error) {
-        console.error('保存配方失败:', error)
-        this.$message.error('保存配方失败')
+        if (error.response?.data?.message) {
+          this.$message.error(error.response.data.message)
+        } else if (!error.silent) {
+          this.$message.error('保存配方失败')
+        }
       }
     },
 
     editSystem(system) {
       this.isEditing = true
-      this.showSolventSumError = false
 
-      // 使用 ElectrolyteFormula 实例的解析后属性直接构建表单数据
-      this.formData = {
+      // 使用 Object.assign 保留原响应式对象，避免整体替换导致 v-model 失效
+      // 嵌套对象/数组用深拷贝，避免编辑时污染原列表数据
+      const solvents = system.solvents.length > 0
+        ? system.solvents.map(s => ({ name: s.name, moleFraction: s.moleFraction }))
+        : [{ name: 'EC', moleFraction: 0.3 }, { name: 'DMC', moleFraction: 0.7 }]
+      const salts = system.salts.length > 0
+        ? system.salts.map(s => ({ name: s.name, cation: s.cation, anion: s.anion, concentration: s.concentration }))
+        : [{ name: 'LiPF6', cation: 'Li+', anion: 'PF6-', concentration: 1.0 }]
+      const additives = system.additives.map(a => ({ name: a.name, concentration: a.concentration }))
+
+      Object.assign(this.formData, {
         id: system.id,
         name: system.name,
         taskDescription: system.taskDescription || '',
-        solventInfo: {
-          solvents: system.solvents.length > 0
-            ? system.solvents.map(s => ({ name: s.name, moleFraction: s.moleFraction }))
-            : [{ name: 'EC', moleFraction: 0.3 }, { name: 'DMC', moleFraction: 0.7 }]
-        },
-        saltInfo: system.salts.length > 0
-          ? system.salts.map(s => ({ name: s.name, cation: s.cation, anion: s.anion, concentration: s.concentration }))
-          : [{ name: 'LiPF6', cation: 'Li+', anion: 'PF6-', concentration: 1.0 }],
-        additiveInfo: system.additives.map(a => ({ name: a.name, concentration: a.concentration })),
+        solventInfo: { solvents },
+        saltInfo: salts,
+        additiveInfo: additives,
         temperature: system.temperature || 298.15,
         pressure: system.pressure || 1.0,
-        boxSize: system.boxSize,
+        boxSize: { x: system.boxSize?.x ?? 40, y: system.boxSize?.y ?? 40, z: system.boxSize?.z ?? 40 },
         boundaryConditions: system.boundaryConditions || 'p p p'
-      }
+      })
 
       this.showFormDialog = true
     },
@@ -427,12 +581,69 @@ export default {
           type: 'warning'
         })
 
-        await systemApi.delete(system.id)
-        this.$message.success('配方已删除')
-        this.loadSystems()
+        const response = await systemApi.delete(system.id)
+        if (response.data.success) {
+          this.$message.success('配方已删除')
+          this.loadSystems()
+        } else {
+          this.$message.error(response.data.message || '删除配方失败')
+        }
       } catch (error) {
-        if (error !== 'cancel') {
+        if (error === 'cancel') return
+        if (error.response?.data?.message) {
+          this.$message.error(error.response.data.message)
+        } else if (!error.silent) {
           this.$message.error('删除配方失败')
+        }
+      }
+    },
+
+    // F-E006: 配方保存为模板
+    async saveAsTemplate(system) {
+      try {
+        await this.$confirm(`确定将配方 "${system.name}" 保存为公开模板?`, '确认', {
+          type: 'info'
+        })
+        const response = await systemApi.saveAsTemplate(system.id, true)
+        if (response.data.success) {
+          this.$message.success('模板保存成功')
+          this.loadSystems()
+        } else {
+          this.$message.error(response.data.message || '模板保存失败')
+        }
+      } catch (error) {
+        if (error === 'cancel') return
+        if (error.response?.data?.message) {
+          this.$message.error(error.response.data.message)
+        } else if (!error.silent) {
+          this.$message.error('模板保存失败')
+        }
+      }
+    },
+
+    // F-E007: 从模板复用创建新配方
+    async copyFromTemplate(system) {
+      try {
+        const { value: newName } = await this.$prompt('请输入新配方名称:', '复用配方', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          inputValue: `${system.name}_副本`,
+          inputValidator: (val) => (val && val.trim() ? true : '配方名称不能为空')
+        })
+
+        const response = await systemApi.copy(system.id, newName.trim())
+        if (response.data.success) {
+          this.$message.success('配方复用成功')
+          this.loadSystems()
+        } else {
+          this.$message.error(response.data.message || '配方复用失败')
+        }
+      } catch (error) {
+        if (error === 'cancel') return
+        if (error.response?.data?.message) {
+          this.$message.error(error.response.data.message)
+        } else if (!error.silent) {
+          this.$message.error('配方复用失败')
         }
       }
     },
@@ -441,7 +652,105 @@ export default {
       return formatHelper.formatDate(dateString)
     },
 
-    handleFilterChange() {}
+    // 搜索回调（回车/清空时触发）
+    doSearch() {
+      this.currentPage = 1
+      this.loadSystems()
+    },
+
+    // 盐/溶剂筛选变更时重置到第一页
+    handleFilterChange() {
+      this.currentPage = 1
+    },
+
+    // 点击行任意位置切换展开状态（操作按钮区已 @click.stop 阻止冒泡）
+    handleRowClick(row, column, event) {
+      // 点击展开图标列时不重复触发（el-table 自身会处理）
+      if (column && column.type === 'expand') return
+
+      // 判断当前行是否已展开：el-table 维护的展开状态无法直接读取，
+      // 通过 DOM 检查该 row 后是否有展开内容 tr
+      const tableEl = this.$refs.formulaTableRef?.$el
+      const expandedTr = this.findExpandedTr(row)
+      if (expandedTr) {
+        // 已展开 → 收起：先过渡 wrapper 高度到 0，再调用 toggleRowExpansion 让 el-table 移除
+        const wrapper = expandedTr.querySelector('.expand-wrapper')
+        if (wrapper) {
+          const targetHeight = wrapper.scrollHeight
+          wrapper.style.transition = 'none'
+          wrapper.style.height = targetHeight + 'px'
+          wrapper.style.overflow = 'hidden'
+          void wrapper.offsetHeight
+          requestAnimationFrame(() => {
+            wrapper.style.transition = 'height 0.3s ease-in-out'
+            requestAnimationFrame(() => {
+              wrapper.style.height = '0px'
+            })
+          })
+          setTimeout(() => {
+            this.$refs.formulaTableRef?.toggleRowExpansion(row, false)
+          }, 340)
+        } else {
+          this.$refs.formulaTableRef?.toggleRowExpansion(row, false)
+        }
+      } else {
+        // 未展开 → 展开：先 toggle 让 el-table 插入展开 tr
+        this.$refs.formulaTableRef?.toggleRowExpansion(row, true)
+        this.$nextTick(() => {
+          const newExpandedTr = this.findExpandedTr(row)
+          const wrapper = newExpandedTr?.querySelector('.expand-wrapper')
+          if (wrapper) {
+            const targetHeight = wrapper.scrollHeight
+            wrapper.style.transition = 'none'
+            wrapper.style.height = '0px'
+            wrapper.style.overflow = 'hidden'
+            void wrapper.offsetHeight
+            requestAnimationFrame(() => {
+              wrapper.style.transition = 'height 0.3s ease-in-out'
+              requestAnimationFrame(() => {
+                wrapper.style.height = targetHeight + 'px'
+              })
+            })
+            setTimeout(() => {
+              if (wrapper.style.height !== '0px') wrapper.style.height = 'auto'
+            }, 360)
+          }
+        })
+      }
+    },
+
+    // 根据 row.id 找到对应的展开内容 tr
+    findExpandedTr(row) {
+      const tableEl = this.$refs.formulaTableRef?.$el
+      if (!tableEl) return null
+      const wrapper = tableEl.querySelector(`.expand-wrapper[data-row-id="${row.id}"]`)
+      return wrapper?.closest('tr') || null
+    },
+
+    // el-table 内部 expand-change 事件（图标点击触发）- 不做处理，由 handleRowClick 统一控制
+    handleExpandChange() {},
+
+    // el-table 列排序变化（与模拟任务页面一致的排序交互）
+    handleSortChange({ prop, order }) {
+      if (!prop || !order) {
+        this.systems = [...this.systems]
+        return
+      }
+      const dir = order === 'ascending' ? 1 : -1
+      this.systems = [...this.systems].sort((a, b) => {
+        let av = a[prop]
+        let bv = b[prop]
+        if (prop === 'createdAt' || prop === 'updatedAt') {
+          av = av ? new Date(av).getTime() : 0
+          bv = bv ? new Date(bv).getTime() : 0
+        }
+        if (av == null) return 1
+        if (bv == null) return -1
+        if (av < bv) return -1 * dir
+        if (av > bv) return 1 * dir
+        return 0
+      })
+    }
   }
 }
 </script>
@@ -653,5 +962,122 @@ export default {
 
 .action-buttons .el-button {
   width: 60px;
+}
+
+/* ===== 表格展开详情 ===== */
+.cell-name {
+  font-weight: 500;
+  color: #303133;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+/* 展开内容分区 - 紧凑（过渡由 JS 控制外层 td 的 height） */
+.expand-body {
+  padding: 8px 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #fbfdff;
+}
+
+/* 展开图标旋转过渡 */
+:deep(.el-table__expand-icon) {
+  transition: transform 0.25s ease;
+}
+
+:deep(.el-table__expand-icon--expanded) {
+  transform: rotate(90deg);
+}
+
+/* 行 hover 过渡 + 鼠标手势 */
+:deep(.el-table__row) {
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+}
+
+.detail-section {
+  padding: 8px 0;
+  border-bottom: 1px dashed #ebeef5;
+}
+
+.detail-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.detail-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 6px;
+  padding-left: 6px;
+  border-left: 3px solid #409eff;
+  line-height: 1.4;
+}
+
+.detail-empty {
+  color: #909399;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.detail-empty.muted {
+  color: #c0c4cc;
+}
+
+.detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 10px;
+  background: #f5f7fa;
+  border-radius: 3px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.detail-list-item .item-name {
+  font-weight: 500;
+  color: #303133;
+  min-width: 60px;
+}
+
+.detail-list-item .item-meta {
+  color: #606266;
+  flex: 1;
+}
+
+/* 展开区 el-descriptions 紧凑 */
+.detail-section :deep(.el-descriptions__cell) {
+  padding: 4px 8px !important;
+}
+
+.detail-section :deep(.el-descriptions__label) {
+  font-size: 12px !important;
+  width: 80px !important;
+}
+
+.detail-section :deep(.el-descriptions__content) {
+  font-size: 12px !important;
+}
+
+/* 分页（统一风格：与模拟任务页面一致） */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+  background: white;
+  border-radius: 0 0 8px 8px;
 }
 </style>

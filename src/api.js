@@ -200,31 +200,40 @@ export const simulationApi = {
     getProgress: (id) => api.get(`/simulations/${id}/progress`)
 }
 
-// 电解液系统API
+// 电解液系统API（对接后端 management 模块 /api/electrolyte-systems）
 export const systemApi = {
-    // 获取所有系统
-    getAll: () => api.get('/systems'),
+    // 分页查询配方列表（F-E004）
+    // 返回 { success, data: { total, page, pageSize, list: [...] } }
+    list: ({ keyword, page = 1, pageSize = 20 } = {}) =>
+        api.get('/electrolyte-systems', {
+            params: { keyword, page, page_size: pageSize }
+        }),
 
-    // 获取单个系统
-    getById: (id) => api.get(`/systems/${id}`),
+    // 获取配方详情（F-E005）
+    getById: (id) => api.get(`/electrolyte-systems/${id}`),
 
-    // 创建系统
-    create: (data) => api.post('/systems', data),
+    // 创建配方（F-E001）
+    create: (data) => api.post('/electrolyte-systems', data),
 
-    // 更新系统
-    update: (id, data) => api.put(`/systems/${id}`, data),
+    // 更新配方（F-E002）
+    update: (id, data) => api.put(`/electrolyte-systems/${id}`, data),
 
-    // 删除系统
-    delete: (id) => api.delete(`/systems/${id}`),
+    // 删除配方（F-E003）
+    delete: (id) => api.delete(`/electrolyte-systems/${id}`),
 
-    // 搜索系统
-    search: (keyword) => api.get(`/systems/search?keyword=${keyword}`),
+    // 搜索配方（F-E004 关键词搜索）
+    search: (keyword, page = 1, pageSize = 20) =>
+        api.get('/electrolyte-systems/search', {
+            params: { keyword, page, page_size: pageSize }
+        }),
 
-    // 获取所有盐的配方
-    getSaltFormulas: () => api.get('/systems/salt-formulas'),
+    // 保存为模板（F-E006）
+    saveAsTemplate: (id, isPublic = false) =>
+        api.put(`/electrolyte-systems/${id}/template`, { is_public: isPublic }),
 
-    // 根据溶剂类型获取系统
-    getBySolvent: (solventType) => api.get(`/systems/solvent/${solventType}`)
+    // 从模板复用创建新配方（F-E007）
+    copy: (id, newName) =>
+        api.post(`/electrolyte-systems/${id}/copy`, { new_name: newName })
 }
 
 // 文件管理API
@@ -287,15 +296,22 @@ export const authApi = {
     login: (data) => api.post('/auth/login', data),
     register: (data) => api.post('/auth/register', data),
     logout: () => api.post('/auth/logout'),
-    forgotPassword: (data) => api.post('/auth/forgot-password', data),
-    resetPassword: (data) => api.post('/auth/reset-password', data)
+    forgotPassword: (data) => api.post('/auth/password-reset/request', data),
+    resetPassword: (data) => api.post('/auth/password-reset/confirm', data)
 }
 
 // 用户管理API
 export const userApi = {
+    // 获取当前登录用户信息（F-U004 查看）
+    getMe: () => api.get('/users/me'),
+    // 更新当前登录用户信息（F-U004 修改）
+    updateMe: (data) => api.put('/users/me', data),
+    // 修改当前登录用户密码
+    changePassword: (data) => api.put('/users/me/password', data),
+
+    // 以下为管理员接口，本次联调暂不使用
     getAll: () => api.get('/users'),
     getById: (id) => api.get(`/users/${id}`),
-    getByUsername: (username) => api.get(`/users/username/${username}`),
     create: (data) => api.post('/users', data),
     update: (id, data) => api.put(`/users/${id}`, data),
     delete: (id) => api.delete(`/users/${id}`)

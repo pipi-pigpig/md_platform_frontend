@@ -1,72 +1,5 @@
 <template>
   <div class="simulations-container">
-    <!-- 页面标题和操作按钮 -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">
-          分子动力学模拟任务管理
-        </h1>
-        <div class="header-actions">
-          <el-button
-            type="primary"
-            @click="handleNewSimulation"
-            size="large"
-          >
-            新建模拟任务
-          </el-button>
-          <el-button
-            @click="refreshData"
-            :loading="loading"
-            size="large"
-          >
-            刷新
-          </el-button>
-          <el-dropdown @command="handleBatchCommand" v-if="selectedSimulations.length > 0">
-            <el-button type="info" size="large">
-              批量操作
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="cancel">取消选中任务</el-dropdown-item>
-                <el-dropdown-item command="delete">删除选中任务</el-dropdown-item>
-                <el-dropdown-item command="export">导出选中信息</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-      </div>
-      
-      <!-- 状态统计卡片 -->
-      <div class="stats-cards">
-        <el-row :gutter="20">
-          <el-col :xs="12" :sm="6" :md="6" :lg="6" :xl="6">
-            <el-statistic title="总任务数" :value="stats.total || 0" />
-          </el-col>
-          <el-col :xs="12" :sm="6" :md="6" :lg="6" :xl="6">
-            <el-statistic
-              title="运行中"
-              :value="stats.running || 0"
-              :value-style="{ color: '#409EFF' }"
-            />
-          </el-col>
-          <el-col :xs="12" :sm="6" :md="6" :lg="6" :xl="6">
-            <el-statistic
-              title="已完成"
-              :value="stats.completed || 0"
-              :value-style="{ color: '#67C23A' }"
-            />
-          </el-col>
-          <el-col :xs="12" :sm="6" :md="6" :lg="6" :xl="6">
-            <el-statistic
-              title="已失败"
-              :value="stats.failed || 0"
-              :value-style="{ color: '#F56C6C' }"
-            />
-          </el-col>
-        </el-row>
-      </div>
-    </div>
-
     <!-- 搜索和过滤栏 -->
     <div class="filter-bar">
       <el-card shadow="never" class="filter-card">
@@ -111,20 +44,18 @@
           </div>
           
           <div class="filter-right">
-            <el-button-group>
-              <el-button
-                @click="changeViewMode('table')"
-                :type="viewMode === 'table' ? 'primary' : ''"
-              >
-                表格
-              </el-button>
-              <el-button
-                @click="changeViewMode('card')"
-                :type="viewMode === 'card' ? 'primary' : ''"
-              >
-                卡片
-              </el-button>
-            </el-button-group>
+            <el-button
+              type="primary"
+              @click="handleNewSimulation"
+            >
+              新建模拟任务
+            </el-button>
+            <el-button
+              @click="refreshData"
+              :loading="loading"
+            >
+              刷新
+            </el-button>
           </div>
         </div>
       </el-card>
@@ -136,7 +67,22 @@
         <template #header>
           <div class="table-header">
             <span>模拟任务列表</span>
-            <span class="table-subtitle">共 {{ filteredSimulations.length }} 个任务</span>
+            <el-button-group>
+              <el-button
+                size="small"
+                @click="changeViewMode('table')"
+                :type="viewMode === 'table' ? 'primary' : ''"
+              >
+                表格
+              </el-button>
+              <el-button
+                size="small"
+                @click="changeViewMode('card')"
+                :type="viewMode === 'card' ? 'primary' : ''"
+              >
+                卡片
+              </el-button>
+            </el-button-group>
           </div>
         </template>
         
@@ -145,15 +91,11 @@
           ref="tableRef"
           :data="paginatedSimulations"
           v-loading="loading"
-          @selection-change="handleSelectionChange"
           @sort-change="handleSortChange"
           :default-sort="{ prop: 'createdAt', order: 'descending' }"
           stripe
           style="width: 100%"
         >
-          <!-- 选择列 -->
-          <el-table-column type="selection" min-width="50" />
-
           <!-- 任务名称列 -->
           <el-table-column prop="jobName" label="任务名称" min-width="100" sortable="custom">
             <template #default="{ row }">
@@ -301,6 +243,7 @@
             :page-sizes="[10, 20, 50, 100]"
             :total="filteredSimulations.length"
             layout="total, sizes, prev, pager, next, jumper"
+            background
             @size-change="handleSizeChange"
             @current-change="handleCurrentChange"
           />
@@ -457,9 +400,10 @@
         <el-pagination
           v-model:current-page="pagination.currentPage"
           v-model:page-size="pagination.pageSize"
-          :page-sizes="[8, 16, 24, 32]"
+          :page-sizes="[10, 20, 50, 100]"
           :total="filteredSimulations.length"
           layout="total, sizes, prev, pager, next, jumper"
+          background
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
         />
@@ -506,28 +450,6 @@
           <el-descriptions-item label="创建时间" :span="2">{{ formatDate(selectedSystem.createdAt) }}</el-descriptions-item>
         </el-descriptions>
       </div>
-    </el-dialog>
-
-    <!-- 批量操作确认对话框 -->
-    <el-dialog 
-      v-model="showBatchConfirmDialog" 
-      :title="batchConfirmTitle"
-      width="400px"
-    >
-      <div class="batch-confirm-content">
-        <p>确定要{{ batchConfirmAction }}选中的 {{ selectedSimulations.length }} 个任务吗？</p>
-        <ul class="selected-list">
-          <li v-for="job in selectedSimulations.slice(0, 5)" :key="job.id">
-            {{ job.jobName }} (#{{ job.id }})
-          </li>
-          <li v-if="selectedSimulations.length > 5">... 还有 {{ selectedSimulations.length - 5 }} 个任务</li>
-        </ul>
-      </div>
-      
-      <template #footer>
-        <el-button @click="showBatchConfirmDialog = false">取消</el-button>
-        <el-button type="primary" @click="confirmBatchOperation">确定</el-button>
-      </template>
     </el-dialog>
 
     <!-- 系统状态监控 -->
@@ -577,7 +499,6 @@ export default {
     return {
       // 数据状态
       simulations: [],
-      selectedSimulations: [],
       loading: false,
 
       // 搜索和过滤
@@ -585,25 +506,20 @@ export default {
       filterStatus: '',
       filterHardware: '',
       viewMode: 'table', // 'table' 或 'card'
-      
+
       // 分页
       pagination: {
         currentPage: 1,
         pageSize: 10,
         total: 0
       },
-      
+
       // 对话框状态
       showCreateDialog: false,
       showSystemDialog: false,
-      showBatchConfirmDialog: false,
       showMonitorDrawer: false,
       selectedSystem: null,
-      
-      // 批量操作
-      batchConfirmAction: '',
-      batchConfirmTitle: '',
-      
+
       // 监控数据
       monitorData: [],
       monitorInterval: null,
@@ -849,17 +765,12 @@ export default {
     async viewSystem(systemId) {
       try {
         const response = await systemApi.getById(systemId)
-        this.selectedSystem = new ElectrolyteFormula(response.data)
+        this.selectedSystem = new ElectrolyteFormula(response.data?.data)
         this.showSystemDialog = true
       } catch (error) {
         console.error('获取系统详情失败:', error)
         ElMessage.error('获取系统详情失败')
       }
-    },
-    
-    // 表格选择变化
-    handleSelectionChange(selection) {
-      this.selectedSimulations = selection
     },
     
     // 表格排序变化
@@ -868,7 +779,7 @@ export default {
         this.simulations.sort((a, b) => {
           const aVal = a[prop]
           const bVal = b[prop]
-          
+
           if (order === 'ascending') {
             return aVal < bVal ? -1 : aVal > bVal ? 1 : 0
           } else {
@@ -877,87 +788,18 @@ export default {
         })
       }
     },
-    
+
     // 分页大小变化
     handleSizeChange(size) {
       this.pagination.pageSize = size
       this.pagination.currentPage = 1
     },
-    
+
     // 分页当前页变化
     handleCurrentChange(page) {
       this.pagination.currentPage = page
     },
-    
-    // 批量操作
-    handleBatchCommand(command) {
-      if (this.selectedSimulations.length === 0) {
-        ElMessage.warning('请先选择要操作的任务')
-        return
-      }
-      
-      this.batchConfirmAction = command
-      this.batchConfirmTitle = {
-        cancel: '批量取消任务',
-        delete: '批量删除任务',
-        export: '批量导出信息'
-      }[command]
-      
-      this.showBatchConfirmDialog = true
-    },
-    
-    // 确认批量操作
-    async confirmBatchOperation() {
-      try {
-        if (this.batchConfirmAction === 'cancel') {
-          // 批量取消
-          for (const job of this.selectedSimulations) {
-            if (job.status === 'RUNNING' || job.status === 'PENDING') {
-              await simulationApi.cancel(job.id)
-            }
-          }
-          ElMessage.success(`已取消 ${this.selectedSimulations.length} 个任务`)
-        } else if (this.batchConfirmAction === 'delete') {
-          // 批量删除
-          for (const job of this.selectedSimulations) {
-            if (job.status !== 'RUNNING') {
-              await simulationApi.delete(job.id)
-            }
-          }
-          ElMessage.success(`已删除 ${this.selectedSimulations.length} 个任务`)
-        } else if (this.batchConfirmAction === 'export') {
-          // 批量导出
-          const exportData = this.selectedSimulations.map(job => ({
-            id: job.id,
-            name: job.jobName,
-            status: job.status,
-            hardware: job.hardwareUsed,
-            created: job.createdAt
-          }))
-          
-          const dataStr = JSON.stringify(exportData, null, 2)
-          const dataBlob = new Blob([dataStr], { type: 'application/json' })
-          const url = window.URL.createObjectURL(dataBlob)
-          const link = document.createElement('a')
-          link.href = url
-          link.setAttribute('download', `simulations_export_${new Date().getTime()}.json`)
-          document.body.appendChild(link)
-          link.click()
-          link.remove()
-          
-          ElMessage.success(`已导出 ${exportData.length} 个任务的信息`)
-        }
-        
-        this.showBatchConfirmDialog = false
-        this.selectedSimulations = []
-        this.loadSimulations()
-        this.loadStats()
-      } catch (error) {
-        console.error('批量操作失败:', error)
-        ElMessage.error('批量操作失败')
-      }
-    },
-    
+
     // 行操作命令
     handleRowCommand(row, command) {
       switch (command) {
@@ -1188,19 +1030,6 @@ export default {
   display: flex;
   gap: 10px;
   align-items: center;
-}
-
-/* 统计卡片样式 */
-.stats-cards {
-  margin-bottom: 20px;
-}
-
-.stats-cards .el-statistic {
-  text-align: center;
-  background: white;
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
 /* 过滤栏样式 */
@@ -1515,22 +1344,6 @@ export default {
   padding: 20px 0;
   background: white;
   border-radius: 0 0 8px 8px;
-}
-
-/* 批量确认对话框 */
-.batch-confirm-content {
-  padding: 10px 0;
-}
-
-.selected-list {
-  margin: 15px 0;
-  padding-left: 20px;
-  color: #606266;
-}
-
-.selected-list li {
-  margin-bottom: 5px;
-  font-size: 14px;
 }
 
 /* 监控面板 */
